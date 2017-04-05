@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*$py.class
+tags
+*.swp
+test.py
+.Dockerfile
+.Procfile
+.runtime.txt
+webhook.sock
+planbot.ini
+planbot.service
+*.old/
