@@ -79,7 +79,7 @@ def glossary(phrase):
         # use only match as definition else find nearest key
         options = [key for key in glossary if phrase in key]
         if len(options) == 1:
-            definition process(options[0])
+            definition = process(options[0])
         elif not options:
             options = [titlecase(k) for k in distance_match(phrase, glossary)]
     finally:
