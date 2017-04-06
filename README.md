@@ -66,4 +66,4 @@ This version of planbot uses the planbotsimple module by default. If you would l
 test spaCy in the local client:
 
 * `pip install -r requirements.txt`
-* Switch `import planbotsimple as pbs` to `import planbot as pbs` in `localbot.py`
+* Switch `import planbotsimple as pb` to `import planbot as pb` in `localbot.py`
