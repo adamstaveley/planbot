@@ -17,7 +17,7 @@ nlp = spacy.load('en_vectors_glove_md')
 
 
 def open_sesame(file):
-    with open('json/' + file) as js:
+    with open('data/' + file) as js:
         pydict = json.load(js)
 
     return pydict
@@ -147,7 +147,7 @@ def local_plan(phrase):
 
 
 def reports(loc, sec):
-    with open('json/reports.json') as js:
+    with open('data/reports.json') as js:
         docs = json.load(js, object_pairs_hook=OrderedDict)
 
     titles = reports = None
