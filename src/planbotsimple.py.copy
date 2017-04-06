@@ -42,74 +42,57 @@ def spell_check(phrase, keys):
     return list(entity[0]) if entity[1] > 0.8 else None
 
 
-def titlecase(phrase):
-    phrase = phrase.capitalize()
-    with open('uncap.txt') as f:
-        uncap = [line.replace('\n', '') for line in f]
-
-    for word in phrase.split():
-        if word not in uncap:
-            phrase = phrase.replace(word, word.capitalize())
-
-    # uppercase acronyms and lowercase longer text in parentheses
-    for acr in re.compile(r'\(\w{1,5}\)').findall(phrase):
-        phrase = phrase.replace(acr, acr.upper())
-    for paren in re.compile(r'\([\w\s]{6,}\)').findall(phrase):
-        phrase = phrase.replace(paren, paren.lower())
-
-    return phrase
-
-
 def glossary(phrase):
     glossary = open_sesame('glossary.json')
-    definition = options = None
+    definition = options = matches = None
 
-    # catch accidental triggers and process phrase
-    if len(phrase) < 3:
-        return None
-    else:
-        phrase = phrase.replace('...', '').lower()
+    phrase = phrase.replace('...', '') if phrase.endswith('...') else phrase
 
-    def process(term):
-        return '{}: {}'.format(titlecase(term), glossary[term])
+    def format_def(term):
+        return '{}: {}'.format(term, glossary[term])
 
     try:
-        definition = process(phrase)
+        definition = format_def(phrase)
     except KeyError:
-        # use only match as definition else find nearest key
-        options = [key for key in glossary if phrase in key]
-        if len(options) == 1:
-            definition process(options[0])
-        elif not options:
-            options = [titlecase(k) for k in distance_match(phrase, glossary)]
-    finally:
-        return definition, options
+        if len(phrase) >= 3:
+            match = [k for k in glossary if phrase in k]
+            if len(match) == 1:
+                definition format_def(match)
+
+    if not definition and len(phrase) >= 3:
+        matches = distance_match(phrase, glossary)
+        if matches:
+            options = '\n\u2022 {}'.format('\n\u2022 '.join(matches))
+
+    return definition, options, matches
 
 
 def use_classes(phrase):
     classes = open_sesame('use_classes.json')
 
-    try:
-        use = [use for use in classes if phrase in use][0]
-        return '{}: {}'.format(use, classes[use])
-    except:
-        if 'list' in phrase:
-            return '\n'.join(sorted(classes))
+    for use in classes:
+        if phrase in use:
+            return '{}: {}'.format(use, classes[use])
+
+    if 'Full list' in phrase:
+        return '\n'.join(sorted(classes))
 
 
 def get_link(phrase, filename):
-    phrase = phrase.replace('...', '').lower()
     pydict = open_sesame(filename)
-    title = link = options = None
+    title = link = options = matches = None
 
-    options = [key for key in pydict if phrase in key]
-    if len(options) == 1:
-        title = titlecase(options[0])
-        link = pydict[options[0]]
-    else:
-        options = [titlecase(key) for key in sentiment(phrase, pydict)]
+    for key in pydict:
+        if phrase in key:
+            title = key
+            link = pydict[key]
 
-    return title, link, options
+    if not link:
+        matches = distance_match(phrase, pydict)
+        if matches:
+            options = '\n\u2022 {}'.format('\n\u2022 '.join(matches))
+
+    return title, link, options, matches
 
 
 def find_lpa(postcode):
@@ -117,7 +100,7 @@ def find_lpa(postcode):
     res = requests.get('https://api.postcodes.io/postcodes/' + postcode).json()
 
     try:
-        return res['result']['admin_district'].lower()
+        return res['result']['admin_district']
     except:
         KeyError
 
@@ -128,16 +111,17 @@ def local_plan(phrase):
     if re.compile(r'[A-Z]+\d+[A-Z]?\s?\d[A-Z]+', re.I).search(phrase):
         council = find_lpa(phrase)
     else:
-        council = phrase.lower()
+        council = phrase.title()
 
     if council and not plans.get(council):
         for word in ['Borough', 'Council', 'District', 'London']:
             council = council.replace(word, '')
+        council.strip()
         match = spell_check(council, plans)
         council = match[0] if match else None
 
     try:
-        return plans[council], '{} Local Plan'.format(titlecase(council))
+        return plans[council], '{} Local Plan'.format(council)
     except:
         KeyError
 

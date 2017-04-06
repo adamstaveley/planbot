@@ -10,7 +10,7 @@ from collections import OrderedDict
 from operator import itemgetter
 
 if __name__ == "__main__":
-    print('Module for querying user terms')
+    print('Planbot module for querying user terms with NLP')
 
 # load spaCy glove vector models
 nlp = spacy.load('en_vectors_glove_md')
@@ -46,63 +46,74 @@ def spell_check(phrase, keys):
     return list(entity[0]) if entity[1] > 0.8 else None
 
 
+def titlecase(phrase):
+    phrase = phrase.capitalize()
+    with open('uncap.txt') as f:
+        uncap = [line.replace('\n', '') for line in f]
+
+    for word in phrase.split():
+        if word not in uncap:
+            phrase = phrase.replace(word, word.capitalize())
+
+    # uppercase acronyms and lowercase longer text in parentheses
+    for acr in re.compile(r'\(\w{1,5}\)').findall(phrase):
+        phrase = phrase.replace(acr, acr.upper())
+    for paren in re.compile(r'\([\w\s]{6,}\)').findall(phrase):
+        phrase = phrase.replace(paren, paren.lower())
+
+    return phrase
+
+
 def glossary(phrase):
-    phrase = phrase.lower()
     glossary = open_sesame('glossary.json')
-    definition = options = matches = None
+    definition = options = None
 
-    # account for quickreplies longer than 20 characters
-    phrase = phrase.replace('...', '') if phrase.endswith('...') else phrase
+    # catch accidental triggers and process phrase
+    if len(phrase) < 3:
+        return None
+    else:
+        phrase = phrase.replace('...', '').lower()
 
-    def format_def(term):
-        return '{}: {}'.format(term.title(), glossary[term])
+    def process(term):
+        return '{}: {}'.format(titlecase(term), glossary[term])
 
     try:
-        definition = format_def(phrase)
+        definition = process(phrase)
     except KeyError:
-        if len(phrase) >= 3:
-            # catch acronyms if only match
-            match = [key for key in glossary if phrase in key]
-            if len(match) == 1:
-                definition = format_def(match[0])
-
-    if not definition and len(phrase) >= 3:
-        matches = sentiment(phrase, glossary)
-        if matches:
-            matches = [m.title() for m in matches]
-            options = '\n\u2022 {}'.format('\n\u2022 '.join(matches))
-
-    return definition, options, matches
+        # use only match as definition else find sentiment in phrase
+        options = [key for key in glossary if phrase in key]
+        if len(options) == 1:
+            definition = process(options[0])
+        elif not options:
+            options = [titlecase(key) for key in sentiment(phrase, glossary))
+    finally:
+        return definition, options
 
 
 def use_classes(phrase):
     classes = open_sesame('use_classes.json')
 
-    for use in classes:
-        if phrase in use:
-            return '{}: {}'.format(use, classes[use])
-
-    if 'Full list' in phrase:
-        return '\n'.join(sorted(classes))
+    try:
+        use = [use for use in classes if phrase in use][0]
+        return '{}: {}'.format(use, classes[use])
+    except:
+        if 'list' in phrase:
+            return '\n'.join(sorted(classes))
 
 
 def get_link(phrase, filename):
-    phrase = phrase.lower()
+    phrase = phrase.replace('...', '').lower()
     pydict = open_sesame(filename)
-    title = link = options = matches = None
+    title = link = options = None
 
-    for key in pydict:
-        if phrase in key:
-            title = key.title()
-            link = pydict[key]
+    options = [key for key in pydict if phrase in key]
+    if len(options) == 1:
+        title = titlecase(options[0])
+        link = pydict[options[0]]
+    else:
+        options = [titlecase(key) for key in sentiment(phrase, pydict)]
 
-    if not link:
-        matches = sentiment(phrase, pydict)
-        if matches:
-            matches = [m.title() for m in matches]
-            options = '\n\u2022 {}'.format('\n\u2022 '.join(matches))
-
-    return title, link, options, matches
+    return title, link, options
 
 
 def find_lpa(postcode):
@@ -110,7 +121,7 @@ def find_lpa(postcode):
     res = requests.get('https://api.postcodes.io/postcodes/' + postcode).json()
 
     try:
-        return res['result']['admin_district']
+        return res['result']['admin_district'].lower()
     except:
         KeyError
 
@@ -124,14 +135,13 @@ def local_plan(phrase):
         council = phrase.lower()
 
     if council and not plans.get(council):
-        council = council.lower()
         for word in ['borough', 'council', 'district', 'london']:
             council = council.replace(word, '')
         match = spell_check(council, plans)
         council = match[0] if match else None
 
     try:
-        return plans[council], '{} Local Plan'.format(council.title())
+        return plans[council], '{} Local Plan'.format(titlecase(council))
     except:
         KeyError
 

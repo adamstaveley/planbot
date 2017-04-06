@@ -3,7 +3,6 @@ __pycache__/
 *$py.class
 tags
 *.swp
-test.py
 .Dockerfile
 .Procfile
 .runtime.txt
@@ -11,3 +10,4 @@ webhook.sock
 planbot.ini
 planbot.service
 *.old/
+*.old

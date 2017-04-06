@@ -1,7 +1,7 @@
 #! python3
 # Facebook version of Planbot
 
-#import logging
+import logging
 import os
 import requests
 import json
@@ -18,6 +18,7 @@ FB_VERIFY_TOKEN = os.environ.get('FB_VERIFY_TOKEN')
 # setup Bottle Server
 debug(True)
 app = application = Bottle()
+
 
 # Facebook webhook GET/POST handling
 @app.get('/webhook')
@@ -67,11 +68,9 @@ def send(request, response):
     q_replies = cards = None
 
     # check for quickreplies
-    if request['context'].get('quickreplies'):
-        response['quickreplies'] = request['context']['quickreplies']
-    if response['quickreplies']:
-        q_replies = [{'title': qr, 'content_type': 'text', 'payload': 'empty'}
-                     for qr in response['quickreplies']]
+    if not response['quickreplies']:
+        response['quickreplies'] = request['context'].get('quickreplies')
+    q_replies = quickreplies(response['quickreplies'])
 
     # check for urls
     if text.startswith('http'):
@@ -84,6 +83,14 @@ def send(request, response):
         cards = template(titles, urls)
 
     fb_message(fb_id, text, q_replies, cards)
+
+
+def quickreplies(quickreplies):
+    return [{
+        'title': qr,
+        'content_type': 'text',
+        'payload': 'emtpy'}
+            for qr in quickreplies]
 
 
 def template(titles, urls):
@@ -112,6 +119,10 @@ def template(titles, urls):
                 "elements": elements}}}
 
 
+def format_options(options):
+    return '\n\u2022 {}'.format('\n\u2022 '.join(options))
+
+
 def first_entity_value(entities, entity):
     # Extract Wit.ai entity
     if entity not in entities:
@@ -129,12 +140,12 @@ def search_glossary(request):
 
     phrase = first_entity_value(entities, 'term')
     if phrase:
-        definition, options, qr = pb.glossary(phrase)
+        definition, options = pb.glossary(phrase)
         if definition:
             context['definition'] = definition
         elif options:
-            context['options'] = options
-            context['quickreplies'] = qr + ['Go back']
+            context['options'] = format_options(options)
+            context['quickreplies'] = options + ['Go back']
         else:
             context['missing_def'] = True
     else:
@@ -162,12 +173,12 @@ def search_projects(request):
 
     phrase = first_entity_value(entities, 'term')
     if phrase:
-        title, link, options, qr = pb.get_link(phrase, 'development.json')
+        title, link, options = pb.get_link(phrase, 'development.json')
         if link:
-            context['link'], context['title'] = link, title
+            context['title'], context['link'] = title, link
         elif options:
-            context['options'] = options
-            context['quickreplies'] = qr + ['Go back']
+            context['options'] = format_options(options)
+            context['quickreplies'] = options + ['Go back']
         else:
             context['missing_link'] = True
     else:
@@ -182,12 +193,12 @@ def search_docs(request):
 
     phrase = first_entity_value(entities, 'term')
     if phrase:
-        title, link, options, qr = pb.get_link(phrase, 'legislation.json')
+        title, link, options = pb.get_link(phrase, 'legislation.json')
         if link:
-            context['link'], context['title'] = link, title
+            context['title'], context['link'] = title, link
         elif options:
             context['options'] = options
-            context['quickreplies'] = qr + ['Go back']
+            context['quickreplies'] = options + ['Go back']
         else:
             context['missing_link'] = True
     else:
@@ -240,7 +251,6 @@ def list_sectors(request):
 
     global user_loc
     user_loc = location
-    #logging.info('Global var "user_loc" initialised as {}'.format(user_loc))
 
     return context
 
@@ -251,7 +261,6 @@ def search_reports(request):
 
     global user_loc
     location = user_loc
-    #logging.info('Global var "user_loc" assigned as {}'.format(location))
 
     sector = first_entity_value(entities, 'report_sector')
     if sector:
@@ -276,7 +285,7 @@ actions = {
 }
 
 client = Wit(access_token=WIT_TOKEN, actions=actions)
-#logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO)
 
 if __name__ == '__main__':
-    app.run()    
+    app.run()

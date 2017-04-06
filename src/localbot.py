@@ -3,7 +3,7 @@
 
 import os
 import json
-import planbotsimple as pbs
+import planbotsimple as pb
 from wit import Wit
 
 access_token = os.environ.get('WIT_TOKEN')
@@ -11,10 +11,14 @@ access_token = os.environ.get('WIT_TOKEN')
 
 def send(request, response):
     text = response['text'].decode('UTF-8')
+    if not response['quickreplies']:
+        response['quickreplies'] = request['context'].get('quickreplies')
     qr = response['quickreplies']
 
     if qr:
         print('{}\nQR: {}'.format(text, ', '.join(qr)))
+    elif isinstance(text, list):
+        print('\n'.join(text))
     else:
         print(text)
 
@@ -34,12 +38,12 @@ def search_glossary(request):
 
     phrase = first_entity_value(entities, 'term')
     if phrase:
-        definition, options, qr = pbs.glossary(phrase)
+        definition, options = pb.glossary(phrase)
         if definition:
             context['definition'] = definition
         elif options:
             context['options'] = options
-            context['quickreplies'] = qr + ['Go back']
+            context['quickreplies'] = options + ['Go back']
         else:
             context['missing_def'] = True
     else:
@@ -54,7 +58,7 @@ def search_classes(request):
 
     phrase = first_entity_value(entities, 'term')
     if phrase:
-        context['info'] = pbs.use_classes(phrase)
+        context['info'] = pb.use_classes(phrase)
     else:
         context['missing_use'] = True
 
@@ -67,12 +71,12 @@ def search_projects(request):
 
     phrase = first_entity_value(entities, 'term')
     if phrase:
-        link, options, qr = pbs.get_link(phrase, 'development.json')[1:]
+        link, options = pb.get_link(phrase, 'development.json')[1:]
         if link:
             context['link'] = link
         elif options:
             context['options'] = options
-            context['quickreplies'] = qr + ['Go back']
+            context['quickreplies'] = options + ['Go back']
         else:
             context['missing_link'] = True
     else:
@@ -87,12 +91,12 @@ def search_docs(request):
 
     phrase = first_entity_value(entities, 'term')
     if phrase:
-        link, options, qr = pbs.get_link(phrase, 'legislation.json')[1:]
+        link, options = pb.get_link(phrase, 'legislation.json')[1:]
         if link:
             context['link'] = link
         elif options:
             context['options'] = options
-            context['quickreplies'] = qr + ['Go back']
+            context['quickreplies'] = options + ['Go back']
         else:
             context['missing_link'] = True
     else:
