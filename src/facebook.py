@@ -68,10 +68,10 @@ def send(request, response):
     q_replies = cards = None
 
     # check for quickreplies
-    if not response['quickreplies']:
-        response['quickreplies'] = request['context'].get('quickreplies')
+    if response['context'].get('quickreplies'):
+        response['quickreplies'] = request['context']['quickreplies']
     if response['quickreplies']:
-        q_replies = quickreplies(response['quickreplies'])
+        q_replies = format_qr(response['quickreplies'])
 
     # check for urls
     if text.startswith('http'):
@@ -86,7 +86,7 @@ def send(request, response):
     fb_message(fb_id, text, q_replies, cards)
 
 
-def quickreplies(quickreplies):
+def format_qr(quickreplies):
     return [{
         'title': qr,
         'content_type': 'text',
