@@ -71,9 +71,9 @@ def search_projects(request):
 
     phrase = first_entity_value(entities, 'term')
     if phrase:
-        link, options = pb.get_link(phrase, 'development.json')[1:]
+        link, options = pb.get_link(phrase, 'development.json')
         if link:
-            context['link'] = link
+            context['link'] = link[1]
         elif options:
             context['options'] = options
             context['quickreplies'] = options + ['Go back']
@@ -91,9 +91,9 @@ def search_docs(request):
 
     phrase = first_entity_value(entities, 'term')
     if phrase:
-        link, options = pb.get_link(phrase, 'legislation.json')[1:]
+        link, options = pb.get_link(phrase, 'legislation.json')
         if link:
-            context['link'] = link
+            context['link'] = link[1]
         elif options:
             context['options'] = options
             context['quickreplies'] = options + ['Go back']
@@ -111,9 +111,9 @@ def search_plans(request):
 
     location = first_entity_value(entities, 'term')
     if council:
-        lp = pbs.local_plan(council)[0]
+        lp = pbs.local_plan(council)
         if lp:
-            context['local_plan'] = lp
+            context['local_plan'] = lp[1]
         else:
             context['missing_loc'] = True
     else:
@@ -159,7 +159,11 @@ def search_reports(request):
     global user_loc
     sector = first_entity_value(entities, 'report_sector')
     if sector:
-        context['reports'] = pbs.reports(user_loc, sector)[1]
+        reports = pbs.reports(user_loc, sector)
+        if reports:
+            context['reports'] = reports[1]
+        else:
+            context['missing_reports'] = True
     else:
         context['missing_report'] = True
 
