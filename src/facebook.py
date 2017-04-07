@@ -162,6 +162,8 @@ def search_classes(request):
     phrase = first_entity_value(entities, 'term')
     if phrase:
         context['info'] = pb.use_classes(phrase)
+        if not context.get('info'):
+            context['missing_use'] = True
     else:
         context['missing_use'] = True
 
@@ -214,7 +216,7 @@ def search_plans(request):
 
     location = first_entity_value(entities, 'term')
     if location:
-        lp, title = pb.local_plan(location)
+        lp = pb.local_plan(location)
         if lp:
             context['title'], context['local_plan'] = lp
         else:
@@ -250,8 +252,10 @@ def list_sectors(request):
     except KeyError:
         context['quickreplies'] = ['Change']
 
+    # global not retained when calling search_reports if already used locally
     global user_loc
     user_loc = location
+    logging.info('Assigned "{}" to global user_loc'.format(user_loc))
 
     return context
 
@@ -261,7 +265,7 @@ def search_reports(request):
     entities = request['entities']
 
     global user_loc
-    location = user_loc
+    logging.info('Referenced global user_loc "{}"'.format(user_loc))
 
     sector = first_entity_value(entities, 'report_sector')
     if sector:

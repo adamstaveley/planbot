@@ -3,8 +3,9 @@
 
 import os
 import json
-import planbotsimple as pb
+from collections import OrderedDict
 from wit import Wit
+import planbotsimple as pb
 
 access_token = os.environ.get('WIT_TOKEN')
 
@@ -16,9 +17,8 @@ def send(request, response):
     qr = response['quickreplies']
 
     if qr:
-        print('{}\nQR: {}'.format(text, ', '.join(qr)))
-    elif isinstance(text, list):
-        print('\n'.join(text))
+        print('{}\nQRs: {}'.format(text, ', '.join(qr)))
+        del qr
     else:
         print(text)
 
@@ -59,6 +59,8 @@ def search_classes(request):
     phrase = first_entity_value(entities, 'term')
     if phrase:
         context['info'] = pb.use_classes(phrase)
+        if not context.get('info'):
+            context['missing_use'] = True
     else:
         context['missing_use'] = True
 
@@ -137,7 +139,6 @@ def search_sectors(request):
     context = request['context']
     entities = request['entities']
 
-    # Should work - if not use a global variable
     global user_loc
     user_loc = first_entity_value(entities, 'report_location')
 
@@ -157,9 +158,10 @@ def search_reports(request):
     entities = request['entities']
 
     global user_loc
+
     sector = first_entity_value(entities, 'report_sector')
     if sector:
-        reports = pbs.reports(user_loc, sector)
+        reports = pb.reports(user_loc, sector)
         if reports:
             context['reports'] = reports[1]
         else:
@@ -176,7 +178,7 @@ actions = {
     'get_class': search_classes,
     'get_pdinfo': search_projects,
     'get_doc': search_docs,
-    'get_lp': search_legislation,
+    'get_lp': search_docs,
     'get_locations': search_locations,
     'get_sectors': search_sectors,
     'get_reports': search_reports

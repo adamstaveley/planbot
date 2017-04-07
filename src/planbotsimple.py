@@ -12,7 +12,7 @@ from operator import itemgetter
 if __name__ == "__main__":
     print('Planbot module for querying user terms without NLP')
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 
 
 def open_sesame(file):
@@ -122,7 +122,7 @@ def get_link(phrase, filename):
     if len(options) == 1:
         link = (titlecase(options[0]), pydict[options[0]])
         options = None
-    else:
+    elif not options:
         options = [titlecase(key) for key in distance_match(phrase, pydict)]
 
     return link, options
@@ -141,6 +141,7 @@ def find_lpa(postcode):
 
 def local_plan(phrase):
     plans = open_sesame('local_plans.json')
+    title = link = None
 
     if re.compile(r'[A-Z]+\d+[A-Z]?\s?\d[A-Z]+', re.I).search(phrase):
         council = find_lpa(phrase)
@@ -154,12 +155,13 @@ def local_plan(phrase):
         council = match[0] if match else None
 
     try:
-        plans[council]
-    except:
-        KeyError
+        link = plans[council]
+    except Exception as err:
+        logging.info('Exception occurred: {}'.format(err))
     else:
         title = '{} Local Plan'.format(titlecase(council))
-        return title, plans[council]
+    finally:
+        return title, link
 
 
 def reports(loc, sec):

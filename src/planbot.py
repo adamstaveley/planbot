@@ -122,9 +122,11 @@ def get_link(phrase, filename):
     options = [key for key in pydict if phrase in key]
     if len(options) == 1:
         link = (titlecase(options[0]), pydict[options[0]])
+        logging.warning('Returning {} - {}'.format(link[0], link[1]))
         options = None
-    else:
+    elif not options:
         options = [titlecase(key) for key in sentiment(phrase, pydict)]
+        logging.warning('Returning {}'.format(options))
 
     return link, options
 
@@ -142,6 +144,7 @@ def find_lpa(postcode):
 
 def local_plan(phrase):
     plans = open_sesame('local_plans.json')
+    title = link = None
 
     if re.compile(r'[A-Z]+\d+[A-Z]?\s?\d[A-Z]+', re.I).search(phrase):
         council = find_lpa(phrase)
@@ -155,12 +158,13 @@ def local_plan(phrase):
         council = match[0] if match else None
 
     try:
-        return plans[council], '{} Local Plan'.format(titlecase(council))
-    except:
-        KeyError
+        link = plans[council]
+    except Exception as err:
+        logging.info('Exception occurred: {}'.format(err))
     else:
         title = '{} Local Plan'.format(titlecase(council))
-        return title, plans[council]
+    finally:
+        return title, link
 
 
 def reports(loc, sec):
