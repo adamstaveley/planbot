@@ -68,7 +68,7 @@ def send(request, response):
     q_replies = cards = None
 
     # check for quickreplies
-    if response['context'].get('quickreplies'):
+    if request['context'].get('quickreplies'):
         response['quickreplies'] = request['context']['quickreplies']
     if response['quickreplies']:
         q_replies = format_qr(response['quickreplies'])
