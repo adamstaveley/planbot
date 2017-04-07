@@ -70,7 +70,8 @@ def send(request, response):
     # check for quickreplies
     if not response['quickreplies']:
         response['quickreplies'] = request['context'].get('quickreplies')
-    q_replies = quickreplies(response['quickreplies'])
+    if response['quickreplies']:
+        q_replies = quickreplies(response['quickreplies'])
 
     # check for urls
     if text.startswith('http'):

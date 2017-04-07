@@ -81,7 +81,7 @@ def glossary(phrase):
     try:
         definition = process(phrase)
     except KeyError:
-        # use only match as definition, multi-match as options 
+        # use only match as definition, multi-match as options
         # else find sentiment in phrase
         options = [key for key in glossary if phrase in key]
         if len(options) == 1:
