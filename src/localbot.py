@@ -38,7 +38,7 @@ def search_glossary(request):
 
     phrase = first_entity_value(entities, 'term')
     if phrase:
-        definition, options = pb.glossary(phrase)
+        definition, options = pb.definitions(phrase)
         if definition:
             context['definition'] = definition
         elif options:
@@ -112,8 +112,8 @@ def search_plans(request):
     entities = request['entities']
 
     location = first_entity_value(entities, 'term')
-    if council:
-        lp = pbs.local_plan(council)
+    if location:
+        lp = pb.local_plan(location)
         if lp:
             context['local_plan'] = lp[1]
         else:
@@ -161,7 +161,7 @@ def search_reports(request):
 
     sector = first_entity_value(entities, 'report_sector')
     if sector:
-        reports = pb.reports(user_loc, sector)
+        reports = pb.market_reports(user_loc, sector)
         if reports:
             context['reports'] = reports[1]
         else:
@@ -183,6 +183,8 @@ actions = {
     'get_sectors': search_sectors,
     'get_reports': search_reports
 }
+
+user_loc = None
 
 client = Wit(access_token, actions=actions)
 client.interactive()

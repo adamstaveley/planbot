@@ -1,6 +1,7 @@
 #! python3
 # Planbot module
 
+import logging
 import json
 import re
 import requests
@@ -16,8 +17,8 @@ if __name__ == "__main__":
 nlp = spacy.load('en_vectors_glove_md')
 
 
-def open_sesame(file):
-    with open('data/' + file) as js:
+def open_sesame(filename):
+    with open('data/' + filename) as js:
         pydict = json.load(js)
 
     return pydict
@@ -44,7 +45,7 @@ def spell_check(phrase, keys):
 
     entity = max(ratio_gen(), key=itemgetter(1))
 
-    return [entity[0]] if entity[1] > 0.75 else None
+    return [entity[0]] if entity[1] > 0.75 else []
 
 
 def titlecase(phrase):
@@ -65,7 +66,7 @@ def titlecase(phrase):
     return phrase
 
 
-def glossary(phrase):
+def definitions(phrase):
     glossary = open_sesame('glossary.json')
     definition = options = None
 
@@ -88,7 +89,7 @@ def glossary(phrase):
             definition = process(options[0])
             options = None
         elif not options:
-            options = [titlecase(key) for key in sentiment(phrase, glossary))
+            options = [titlecase(key) for key in sentiment(phrase, glossary)]
     finally:
         return definition, options
 
@@ -103,7 +104,8 @@ def use_classes(phrase):
     try:
         match = [use for use in classes if phrase in use][0]
         use = process(match)
-    except:
+    except Exception as err:
+        logging.info('Exception occurred: {}'.format(err))
         if 'list' in phrase:
             use = '\n'.join(sorted(classes))
         else:
@@ -116,17 +118,14 @@ def use_classes(phrase):
 def get_link(phrase, filename):
     phrase = phrase.replace('...', '').lower()
     pydict = open_sesame(filename)
-    link = title = options = None
-    link = (title, link)
+    link = (None, None)
 
     options = [key for key in pydict if phrase in key]
     if len(options) == 1:
         link = (titlecase(options[0]), pydict[options[0]])
-        logging.warning('Returning {} - {}'.format(link[0], link[1]))
         options = None
     elif not options:
         options = [titlecase(key) for key in sentiment(phrase, pydict)]
-        logging.warning('Returning {}'.format(options))
 
     return link, options
 
@@ -138,8 +137,8 @@ def find_lpa(postcode):
 
     try:
         return data['result']['admin_district'].lower()
-    except:
-        KeyError
+    except KeyError:
+        return None
 
 
 def local_plan(phrase):
@@ -167,18 +166,19 @@ def local_plan(phrase):
         return title, link
 
 
-def reports(loc, sec):
+def market_reports(loc, sec):
     # rather than joining reports and intercepting text starting with 'http'
     # down the line, better to assign True to a template variable
     with open('data/reports.json') as js:
         docs = json.load(js, object_pairs_hook=OrderedDict)
 
-    titles = reports = None
-
     try:
         titles = list(docs[loc][sec])
-        reports = list(docs[loc][sec].values())
-    except:
-        KeyError
+        links = list(docs[loc][sec].values())
+    except Exception as err:
+        logging.info('Exception occurred: {}'.format(err))
+        titles = reports = None
     else:
-        return titles, ' '.join(reports)
+        reports = ' '.join(links)
+    finally:
+        return titles, reports

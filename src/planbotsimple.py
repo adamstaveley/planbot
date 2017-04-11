@@ -15,8 +15,8 @@ if __name__ == "__main__":
 logging.basicConfig(level=logging.WARNING)
 
 
-def open_sesame(file):
-    with open('data/' + file) as js:
+def open_sesame(filename):
+    with open('data/' + filename) as js:
         pydict = json.load(js)
 
     return pydict
@@ -64,7 +64,7 @@ def titlecase(phrase):
     return phrase
 
 
-def glossary(phrase):
+def definitions(phrase):
     glossary = open_sesame('glossary.json')
     definition = options = None
 
@@ -79,9 +79,10 @@ def glossary(phrase):
 
     try:
         definition = process(phrase)
-    except:
+    except Exception as err:
         # use only match as definition, multi-match as options
         # else find nearest key
+        logging.info('Exception occurred: {}'.format(err))
         options = [key for key in glossary if phrase in key]
         if len(options) == 1:
             definition = process(options[0])
@@ -102,7 +103,8 @@ def use_classes(phrase):
     try:
         match = [use for use in classes if phrase in use][0]
         use = process(match)
-    except:
+    except Exception as err:
+        logging.info('Exception occurred: {}'.format(err))
         if 'list' in phrase:
             use = '\n'.join(sorted(classes))
         else:
@@ -115,8 +117,7 @@ def use_classes(phrase):
 def get_link(phrase, filename):
     phrase = phrase.replace('...', '').lower()
     pydict = open_sesame(filename)
-    link = title = options = None
-    link = (title, link)
+    link = (None, None)
 
     options = [key for key in pydict if phrase in key]
     if len(options) == 1:
@@ -135,8 +136,8 @@ def find_lpa(postcode):
 
     try:
         return data['result']['admin_district'].lower()
-    except:
-        KeyError
+    except KeyError:
+        return None
 
 
 def local_plan(phrase):
@@ -164,18 +165,17 @@ def local_plan(phrase):
         return title, link
 
 
-def reports(loc, sec):
-    # rather than joining reports and intercepting text starting with 'http'
-    # down the line, better to assign True to a template variable
+def market_reports(loc, sec):
     with open('data/reports.json') as js:
         docs = json.load(js, object_pairs_hook=OrderedDict)
 
-    titles = reports = None
-
     try:
         titles = list(docs[loc][sec])
-        reports = list(docs[loc][sec].values())
-    except:
-        KeyError
+        links = list(docs[loc][sec].values())
+    except Exception as err:
+        logging.info('Exception occurred: {}'.format(err))
+        titles = reports = None
     else:
-        return titles, ' '.join(reports)
+        reports = ' '.join(links)
+    finally:
+        return titles, reports

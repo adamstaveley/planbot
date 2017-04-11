@@ -141,7 +141,7 @@ def search_glossary(request):
 
     phrase = first_entity_value(entities, 'term')
     if phrase:
-        definition, options = pb.glossary(phrase)
+        definition, options = pb.definitions(phrase)
         if definition:
             context['definition'] = definition
         elif options:
@@ -264,12 +264,11 @@ def search_reports(request):
     context = request['context']
     entities = request['entities']
 
-    global user_loc
     logging.info('Referenced global user_loc "{}"'.format(user_loc))
 
     sector = first_entity_value(entities, 'report_sector')
     if sector:
-        reports = pb.reports(user_loc, sector)
+        reports = pb.market_reports(user_loc, sector)
         if reports:
             context['title'], context['reports'] = reports
         else:
@@ -292,6 +291,8 @@ actions = {
     'get_sectors': list_sectors,
     'get_reports': search_reports
 }
+
+user_loc = None
 
 client = Wit(access_token=WIT_TOKEN, actions=actions)
 logging.basicConfig(level=logging.INFO)
