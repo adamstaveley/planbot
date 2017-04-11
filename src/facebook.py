@@ -242,7 +242,9 @@ def list_sectors(request):
     context = request['context']
     entities = request['entities']
 
+    global location
     location = first_entity_value(entities, 'report_location')
+    logging.info('global location = "{}"'.format(location))
 
     with open('data/reports.json') as js:
         reports = json.load(js, object_pairs_hook=OrderedDict)
@@ -252,11 +254,6 @@ def list_sectors(request):
     except KeyError:
         context['quickreplies'] = ['Change']
 
-    # global not retained when calling search_reports if already used locally
-    global user_loc
-    user_loc = location
-    logging.info('Assigned "{}" to global user_loc'.format(user_loc))
-
     return context
 
 
@@ -264,11 +261,11 @@ def search_reports(request):
     context = request['context']
     entities = request['entities']
 
-    logging.info('Referenced global user_loc "{}"'.format(user_loc))
+    logging.info('global in use: location = "{}"'.format(location))
 
     sector = first_entity_value(entities, 'report_sector')
     if sector:
-        reports = pb.market_reports(user_loc, sector)
+        reports = pb.market_reports(location, sector)
         if reports:
             context['title'], context['reports'] = reports
         else:
@@ -276,7 +273,6 @@ def search_reports(request):
     else:
         context['missing_report'] = True
 
-    del user_loc
     return context
 
 
@@ -291,8 +287,6 @@ actions = {
     'get_sectors': list_sectors,
     'get_reports': search_reports
 }
-
-user_loc = None
 
 client = Wit(access_token=WIT_TOKEN, actions=actions)
 logging.basicConfig(level=logging.INFO)
