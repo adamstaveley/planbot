@@ -12,6 +12,7 @@ from operator import itemgetter
 if __name__ == "__main__":
     print('Planbot module for querying user terms without NLP')
 
+# log to file once in production
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("requests").setLevel(logging.WARNING)
 
@@ -160,18 +161,21 @@ def local_plan(phrase):
     except Exception as err:
         logging.info('local_plan exception: {}'.format(err))
 
-        for word in ['Borough', 'Council', 'District', 'London']:
+        for word in ['borough', 'council', 'district', 'london']:
             council = council.replace(word, '')
 
-        options = [titlecase(key) for key in plans if council in key]
+        options = [key for key in plans if council in key]
         if len(options) == 1:
-            title = format_title(options[0])
+            title = format_title(titlecase(options[0]))
             link = plans[options[0]]
+            options = None
         elif not options:
             council = spell_check(council, plans)
             if council:
-                title = format_title(council[0])
+                title = format_title(titlecase(council[0]))
                 link = plans[council[0]]
+        else:
+            options = [titlecase(key) for key in options]
     else:
         title = '{} Local Plan'.format(titlecase(council))
         options = None

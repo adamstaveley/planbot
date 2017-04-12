@@ -155,23 +155,29 @@ def local_plan(phrase):
     else:
         council = phrase.lower()
 
+    def format_title(title):
+        return '{} Local Plan'.format(titlecase(title))
+
     try:
         link = plans[council]
     except Exception as err:
         logging.info('local_plan exception: {}'.format(err))
 
-        for word in ['Borough', 'Council', 'District', 'London']:
+        for word in ['borough', 'council', 'district', 'london']:
             council = council.replace(word, '')
 
-        options = [titlecase(key) for key in plans if council in key]
+        options = [key for key in plans if council in key]
         if len(options) == 1:
-            title = format_title(options[0])
+            title = format_title(titlecase(options[0]))
             link = plans[options[0]]
+            options = None
         elif not options:
             council = spell_check(council, plans)
             if council:
-                title = format_title(council[0])
+                title = format_title(titlecase(council[0]))
                 link = plans[council[0]]
+        else:
+            options = [titlecase(key) for key in options]
     else:
         title = '{} Local Plan'.format(titlecase(council))
         options = None
