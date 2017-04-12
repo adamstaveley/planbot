@@ -13,6 +13,8 @@ from operator import itemgetter
 if __name__ == "__main__":
     print('Planbot module for querying user terms with NLP')
 
+logging.basicConfig(level=logging.INFO)
+
 # load spaCy glove vector models
 nlp = spacy.load('en_vectors_glove_md')
 

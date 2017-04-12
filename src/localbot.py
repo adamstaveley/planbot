@@ -2,6 +2,7 @@
 # Command line Planbot client
 
 import os
+import sys
 import json
 from collections import OrderedDict
 from wit import Wit
@@ -18,7 +19,9 @@ def send(request, response):
 
     if qr:
         print('{}\nQRs: {}'.format(text, ', '.join(qr)))
-        del qr
+    elif request['context'].get('exit'):
+        request.clear()
+        response.clear()
     else:
         print(text)
 
@@ -139,14 +142,14 @@ def search_sectors(request):
     context = request['context']
     entities = request['entities']
 
-    global user_loc
-    user_loc = first_entity_value(entities, 'report_location')
+    global location
+    location = first_entity_value(entities, 'report_location')
 
     with open('data/reports.json') as js:
         reports = json.load(js, object_pairs_hook=OrderedDict)
 
     try:
-        context['quickreplies'] = list(reports[user_loc]) + ['Change']
+        context['quickreplies'] = list(reports[location]) + ['Change']
     except KeyError:
         context['quickreplies'] = ['Change']
 
@@ -157,11 +160,9 @@ def search_reports(request):
     context = request['context']
     entities = request['entities']
 
-    global user_loc
-
     sector = first_entity_value(entities, 'report_sector')
     if sector:
-        reports = pb.market_reports(user_loc, sector)
+        reports = pb.market_reports(location, sector)
         if reports:
             context['reports'] = reports[1]
         else:
@@ -172,6 +173,16 @@ def search_reports(request):
     return context
 
 
+def goodbye(request):
+    '''
+    update context to let send() know conversation is finished
+    if context['exit'] found in send(), request and response cleared
+    (...hopefully) - test tomorrow!
+    '''
+    context = request['context']
+    context['exit'] = True
+    return context
+
 actions = {
     'send': send,
     'get_definition': search_glossary,
@@ -181,10 +192,9 @@ actions = {
     'get_lp': search_docs,
     'get_locations': search_locations,
     'get_sectors': search_sectors,
-    'get_reports': search_reports
+    'get_reports': search_reports,
+    'goodbye': goodbye
 }
-
-user_loc = None
 
 client = Wit(access_token, actions=actions)
 client.interactive()

@@ -12,7 +12,8 @@ from operator import itemgetter
 if __name__ == "__main__":
     print('Planbot module for querying user terms without NLP')
 
-logging.basicConfig(level=logging.WARNING)
+logging.basicConfig(level=logging.INFO)
+logging.getLogger("requests").setLevel(logging.WARNING)
 
 
 def open_sesame(filename):

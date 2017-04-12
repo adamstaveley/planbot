@@ -83,6 +83,11 @@ def send(request, response):
 
         cards = template(titles, urls)
 
+    # flush context and session_id if conversation ends
+    if request['context'].get('exit'):
+        request.clear()
+        response.clear()
+
     fb_message(fb_id, text, q_replies, cards)
 
 
@@ -244,7 +249,6 @@ def list_sectors(request):
 
     global location
     location = first_entity_value(entities, 'report_location')
-    logging.info('global location = "{}"'.format(location))
 
     with open('data/reports.json') as js:
         reports = json.load(js, object_pairs_hook=OrderedDict)
@@ -261,8 +265,6 @@ def search_reports(request):
     context = request['context']
     entities = request['entities']
 
-    logging.info('global in use: location = "{}"'.format(location))
-
     sector = first_entity_value(entities, 'report_sector')
     if sector:
         reports = pb.market_reports(location, sector)
@@ -276,6 +278,17 @@ def search_reports(request):
     return context
 
 
+def goodbye(request):
+    '''
+    update context to let send() know conversation is finished
+    if context['exit'] found in send(), request and response cleared
+    (...hopefully) - test tomorrow!
+    '''
+    context = request['context']
+    context['exit'] = True
+    return context
+
+
 actions = {
     'send': send,
     'get_definition': search_glossary,
@@ -285,7 +298,8 @@ actions = {
     'get_lp': search_plans,
     'get_locations': list_locations,
     'get_sectors': list_sectors,
-    'get_reports': search_reports
+    'get_reports': search_reports,
+    'goodbye': goodbye
 }
 
 client = Wit(access_token=WIT_TOKEN, actions=actions)
