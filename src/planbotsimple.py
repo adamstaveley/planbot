@@ -149,7 +149,7 @@ def local_plan(phrase):
     if re.compile(r'[A-Z]+\d+[A-Z]?\s?\d[A-Z]+', re.I).search(phrase):
         council = find_lpa(phrase)
         if not council:
-            return None, None
+            return (title, link), None
     else:
         council = phrase.lower()
 

@@ -182,7 +182,7 @@ def search_projects(request):
     phrase = first_entity_value(entities, 'term')
     if phrase:
         link, options = pb.get_link(phrase, 'development.json')
-        if link:
+        if link[1]:
             context['title'], context['link'] = link
         elif options:
             context['options'] = format_options(options)
@@ -202,7 +202,7 @@ def search_docs(request):
     phrase = first_entity_value(entities, 'term')
     if phrase:
         link, options = pb.get_link(phrase, 'legislation.json')
-        if link:
+        if link[1]:
             context['title'], context['link'] = link
         elif options:
             context['options'] = options
@@ -222,7 +222,7 @@ def search_plans(request):
     location = first_entity_value(entities, 'term')
     if location:
         plan, options = pb.local_plan(location)
-        if plan:
+        if plan[1]:
             context['title'], context['local_plan'] = plan
         elif options:
             context['options'] = format_options(options)

@@ -78,7 +78,7 @@ def search_projects(request):
     phrase = first_entity_value(entities, 'term')
     if phrase:
         link, options = pb.get_link(phrase, 'development.json')
-        if link:
+        if link[1]:
             context['link'] = link[1]
         elif options:
             context['options'] = options
@@ -98,7 +98,7 @@ def search_docs(request):
     phrase = first_entity_value(entities, 'term')
     if phrase:
         link, options = pb.get_link(phrase, 'legislation.json')
-        if link:
+        if link[1]:
             context['link'] = link[1]
         elif options:
             context['options'] = options
