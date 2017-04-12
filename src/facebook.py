@@ -221,9 +221,12 @@ def search_plans(request):
 
     location = first_entity_value(entities, 'term')
     if location:
-        lp = pb.local_plan(location)
-        if lp:
-            context['title'], context['local_plan'] = lp
+        plan, options = pb.local_plan(location)
+        if plan:
+            context['title'], context['local_plan'] = plan
+        elif options:
+            context['options'] = format_options(options)
+            context['quickreplies'] = options + ['Go back']
         else:
             context['missing_loc'] = True
     else:
@@ -280,9 +283,8 @@ def search_reports(request):
 
 def goodbye(request):
     '''
-    update context to let send() know conversation is finished
-    if context['exit'] found in send(), request and response cleared
-    (...hopefully) - test tomorrow!
+    update context to let send() know conversation finished - may not always be
+    needed but there are times where Wit won't 'flush' the session at end
     '''
     context = request['context']
     context['exit'] = True

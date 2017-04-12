@@ -83,7 +83,7 @@ def definitions(phrase):
     except Exception as err:
         # use only match as definition, multi-match as options
         # else find nearest key
-        logging.info('Exception occurred: {}'.format(err))
+        logging.info('definitions exception: {}'.format(err))
         options = [key for key in glossary if phrase in key]
         if len(options) == 1:
             definition = process(options[0])
@@ -105,7 +105,7 @@ def use_classes(phrase):
         match = [use for use in classes if phrase in use][0]
         use = process(match)
     except Exception as err:
-        logging.info('Exception occurred: {}'.format(err))
+        logging.info('use_classes exception: {}'.format(err))
         if 'list' in phrase:
             use = '\n'.join(sorted(classes))
         else:
@@ -147,23 +147,36 @@ def local_plan(phrase):
 
     if re.compile(r'[A-Z]+\d+[A-Z]?\s?\d[A-Z]+', re.I).search(phrase):
         council = find_lpa(phrase)
+        if not council:
+            return None, None
     else:
         council = phrase.lower()
 
-    if council and not plans.get(council):
-        for word in ['Borough', 'Council', 'District', 'London']:
-            council = council.replace(word, '')
-        match = spell_check(council, plans)
-        council = match[0] if match else None
+    def format_title(title):
+        return '{} Local Plan'.format(titlecase(title))
 
     try:
         link = plans[council]
     except Exception as err:
-        logging.info('Exception occurred: {}'.format(err))
+        logging.info('local_plan exception: {}'.format(err))
+
+        for word in ['Borough', 'Council', 'District', 'London']:
+            council = council.replace(word, '')
+
+        options = [titlecase(key) for key in plans if council in key]
+        if len(options) == 1:
+            title = format_title(options[0])
+            link = plans[options[0]]
+        elif not options:
+            council = spell_check(council, plans)
+            if council:
+                title = format_title(council[0])
+                link = plans[council[0]]
     else:
         title = '{} Local Plan'.format(titlecase(council))
+        options = None
     finally:
-        return title, link
+        return (title, link), options
 
 
 def market_reports(loc, sec):
@@ -174,7 +187,7 @@ def market_reports(loc, sec):
         titles = list(docs[loc][sec])
         links = list(docs[loc][sec].values())
     except Exception as err:
-        logging.info('Exception occurred: {}'.format(err))
+        logging.info('market_reports exception: {}'.format(err))
         titles = reports = None
     else:
         reports = ' '.join(links)

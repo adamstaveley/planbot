@@ -12,6 +12,7 @@ access_token = os.environ.get('WIT_TOKEN')
 
 
 def send(request, response):
+    # bug?: quickreplies persist if bot sends multiple messages in succession
     text = response['text'].decode('UTF-8')
     if not response['quickreplies']:
         response['quickreplies'] = request['context'].get('quickreplies')
@@ -116,9 +117,12 @@ def search_plans(request):
 
     location = first_entity_value(entities, 'term')
     if location:
-        lp = pb.local_plan(location)
-        if lp:
-            context['local_plan'] = lp[1]
+        plan, options = pb.local_plan(location)
+        if plan:
+            context['local_plan'] = plan[1]
+        elif options:
+            context['options'] = options
+            context['quickreplies'] = options + ['Go back']
         else:
             context['missing_loc'] = True
     else:
@@ -176,8 +180,6 @@ def search_reports(request):
 def goodbye(request):
     '''
     update context to let send() know conversation is finished
-    if context['exit'] found in send(), request and response cleared
-    (...hopefully) - test tomorrow!
     '''
     context = request['context']
     context['exit'] = True
