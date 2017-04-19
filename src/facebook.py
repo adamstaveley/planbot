@@ -207,7 +207,7 @@ def search_docs(request):
         if link[1]:
             context['title'], context['link'] = link
         elif options:
-            context['options'] = options
+            context['options'] = format_options(options)
             context['quickreplies'] = options + ['Go back']
         else:
             context['missing_link'] = True
@@ -267,6 +267,7 @@ def list_sectors(request):
 
 
 def search_reports(request):
+    # remember to add new locations/sectors as their own wit entities
     context = request['context']
     entities = request['entities']
 
