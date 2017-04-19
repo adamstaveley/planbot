@@ -62,8 +62,10 @@ def search_classes(request):
 
     phrase = first_entity_value(entities, 'term')
     if phrase:
-        context['info'] = pb.use_classes(phrase)
-        if not context.get('info'):
+        use = pb.use_classes(phrase)
+        if use:
+            context['info'] = use
+        else:
             context['missing_use'] = True
     else:
         context['missing_use'] = True
