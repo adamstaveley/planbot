@@ -3,7 +3,7 @@
 **Planbot is a UK property chatbot agent with a focus on planning.**
 
 Planbot aims to provide users with a wide range of information. Currently, users can:
-* Ask for a definition to over 500 terms
+* Ask for a definition to over 750 terms
 * Find out about different use classes and permitted development
 * Request policy and legislation, including local plans
 * Request market reports from industry sources
@@ -11,6 +11,7 @@ Planbot aims to provide users with a wide range of information. Currently, users
 Sources used:
 * Planning Portal
 * Gov UK
+* [*Lexicon of PRS, BtR & Property Terms*](http://www.richard-berridge.co.uk    /prs-lexicon), Richard Berridge
 * Savills
 * Cushman & Wakefield
 * Gerald Eve

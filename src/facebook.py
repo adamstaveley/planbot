@@ -41,15 +41,31 @@ def messenger_post():
                 message = messages[0]
                 fb_id = message['sender']['id']
                 text = message['message']['text']
+
+                if not text:
+                    try:
+                        postback = message['postback']['payload']
+                    except KeyError:
+                        logging.info('No payload found in postback')
+
+                text = manage_postbacks(postback)
                 client.run_actions(session_id=fb_id, message=text)
     else:
         return 'Received Different Event'
     return None
 
 
+def manage_postbacks(pb):
+    try:
+        return postbacks[pb]
+    except Exception as error:
+        logging.info('A postback exception occurred:' + error)
+        return pb
+
+
 def fb_message(sender_id, text, q_replies, cards):
     # Send response to Facebook Graph API
-    data = {'recipient': {'id': sender_id}}
+    data = {'recipient': {'id': sender_id}, 'sender_action': 'typing_on'}
 
     data['message'] = {'text': text, 'quick_replies': q_replies} if q_replies \
         else cards if cards else {'text': text}
@@ -95,7 +111,7 @@ def format_qr(quickreplies):
     return [{
         'title': qr,
         'content_type': 'text',
-        'payload': 'emtpy'}
+        'payload': 'empty'}
             for qr in quickreplies]
 
 
@@ -125,6 +141,10 @@ def template(titles, urls):
                 "elements": elements}}}
 
 
+def join_key_val(key, value):
+    return '{}: {}'.format(key, value)
+
+
 def format_options(options):
     return '\n\u2022 {}'.format('\n\u2022 '.join(options))
 
@@ -148,7 +168,7 @@ def search_glossary(request):
     if phrase:
         definition, options = pb.definitions(phrase)
         if definition:
-            context['definition'] = definition
+            context['definition'] = join_key_val(definition[0], definition[1])
         elif options:
             context['options'] = format_options(options)
             context['quickreplies'] = options + ['Go back']
@@ -168,7 +188,7 @@ def search_classes(request):
     if phrase:
         use = pb.use_classes(phrase)
         if use:
-            context['info'] = use
+            context['info'] = join_key_val(use[0], use[1])
         else:
             context['missing_use'] = True
     else:
@@ -293,6 +313,15 @@ def goodbye(request):
     context['exit'] = True
     return context
 
+
+postbacks = {
+    "START_PAYLOAD": "Hi",
+    "DEFINE_PAYLOAD": "Definition",
+    "INFO_PAYLOAD": "Information",
+    "POLICY_PAYLOAD": "Policy/legal",
+    "LP_PAYLOAD": "Local plan",
+    "REPORT_PAYLOAD": "Market report"
+}
 
 actions = {
     'send': send,

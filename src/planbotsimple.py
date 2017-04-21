@@ -80,14 +80,14 @@ def definitions(phrase):
         return '{}: {}'.format(titlecase(term), glossary[term])
 
     try:
-        definition = process(phrase)
+        definition = (titlecase(phrase), glossary[phrase])
     except Exception as err:
         # use only match as definition, multi-match as options
         # else find nearest key
         logging.info('definitions exception: {}'.format(err))
         options = [key for key in glossary if phrase in key]
         if len(options) == 1:
-            definition = process(options[0])
+            definition = (titlecase(options[0]), glossary[options[0]])
             options = None
         elif not options:
             options = [titlecase(k) for k in distance_match(phrase, glossary)]
@@ -104,14 +104,14 @@ def use_classes(phrase):
 
     try:
         match = [use for use in classes if phrase in use][0]
-        use = process(match)
+        use = (match, classes[match])
     except Exception as err:
         logging.info('use_classes exception: {}'.format(err))
         if 'list' in phrase:
             use = '\n'.join(sorted(classes))
         else:
             match = spell_check(phrase, classes)
-            use = process(match[0])
+            use = (match[0], classes[match[0]])
     finally:
         return use
 
