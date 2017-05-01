@@ -47,8 +47,8 @@ def messenger_post():
                         postback = message['postback']['payload']
                     except KeyError:
                         logging.info('No payload found in postback')
-
-                text = manage_postbacks(postback)
+                    else:
+                        text = manage_postbacks(postback)
                 client.run_actions(session_id=fb_id, message=text)
     else:
         return 'Received Different Event'
