@@ -42,6 +42,8 @@ def messenger_post():
                 fb_id = message['sender']['id']
                 text = message['message']['text']
 
+                logging.info('Message received: {}'.format(text))
+
                 if not text:
                     try:
                         postback = message['postback']['payload']
