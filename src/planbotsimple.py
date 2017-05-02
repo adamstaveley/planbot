@@ -96,6 +96,7 @@ def definitions(phrase):
 
 
 def use_classes(phrase):
+    phrase = phrase.lower()
     classes = open_sesame('use_classes.json')
     use = None
 
@@ -104,14 +105,14 @@ def use_classes(phrase):
 
     try:
         match = [use for use in classes if phrase in use][0]
-        use = (match, classes[match])
+        use = (titlecase(match), classes[match])
     except Exception as err:
         logging.info('use_classes exception: {}'.format(err))
         if 'list' in phrase:
             use = '\n'.join(sorted(classes))
         else:
             match = spell_check(phrase, classes)
-            use = (match[0], classes[match[0]])
+            use = (titlecase(match[0]), classes[match[0]])
     finally:
         return use
 
@@ -184,6 +185,7 @@ def local_plan(phrase):
 
 
 def market_reports(loc, sec):
+    loc, sec = loc.lower(), sec.lower()
     with open('data/reports.json') as js:
         docs = json.load(js, object_pairs_hook=OrderedDict)
 

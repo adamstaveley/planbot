@@ -1,5 +1,4 @@
 import json
-from collections import OrderedDict
 from bottle import Bottle, request, response, get
 import planbotsimple as pb
 
@@ -9,103 +8,104 @@ if __name__ == '__main__':
     app.run()
 
 
-@app.get('/<action>/<param1>/<param2>')
-def get_data(action, *param1, *param2):
-    return None
+@app.get('/<path:path>')
+def process_params(path):
+    response.headers['Content-Type'] = 'application/json'
+    path = path.replace('-', ' ').replace('_', ' ').replace('%20', ' ')
+    params = path.strip('/').split('/')
 
-@app.get('/<action>')
+    if len(params) == 1:
+        resp = return_all_data(path)
+    elif len(params) == 2:
+        if params[0] == 'reports':
+            resp = handle_report_query(params[0], params[1])
+        else:
+            resp = answer_query(params)
+    elif len(params) == 3:
+        resp = handle_report_query(params[0], params[1], sector=params[2])
+    else:
+        resp = {'success': False, 'reason': 'invalid number of parameters'}
+
+    return json.dumps(resp)
+
+
 def return_all_data(action):
-    response.header['Content-Type'] = 'application/json'
     resp = dict()
 
     try:
-        with open(switch[action][1]) as js:
-            pydict = json.load(js, object_pairs_hook=OrderedDict)
+        filename = switch[action][1]
     except KeyError:
         resp['success'] = False
-        resp['reason'] = '"{}" action not found'.format(action)
+        resp['reason'] = 'action \'{}\' not found'.format(action)
     else:
+        with open('data/' + filename) as f:
+            pydict = json.load(f)
         resp['success'] = True
         resp['result'] = pydict
     finally:
-        return json.dumps(resp)
-        
+        return resp
 
-@app.get('/<action>/<param>')
-def return_specific_data(action, param):
-    response.header['Content-Type'] = 'application/json'
+
+def answer_query(params):
+    action, param = params
+    alt_actions = ['project', 'docs']
     resp = dict()
 
     try:
-        try:
-            value, options = switch[action][0](param)   
-        except Exception:
-            if param == 'use':
-                value = switch[action][0](param)
-                options = None
-            elif param == 'projects' or param == 'leagl':
-                value, options = switch[action][0](param, switch[action][1])
-    except KeyError as err:
-        resp['success'] = False
-        resp['reason'] = '"{}" action not found'.format(err)
-    else:
-        if value:
-            resp['key'], resp['value'] = value
-        elif options:
-            resp['options'] = options
-    finally:
-        if resp['value'] or resp['options']:
-            resp['success'] = True
+        if action in alt_actions:
+            f = switch[action][1]
+            result, options = switch[action][0](param, f)
+            result = None if result == (None, None) else result
+        elif action == 'use':
+            result = switch[action][0](param)
+            options = None
+        elif action == 'lp':
+            result, options = switch[action][0](param)
+            result = None if result == (None, None) else result
         else:
-            resp['success'] = False
-            resp['reason'] = 'No information available for "{}"'.format(param)
-
-        return json.dumps(resp)
-
-
-@app.get('/reports/<location>')
-def return_report_sectors(location):
-    response.header['Content-Type'] = 'application/json'
-    resp = dict()
-
-    with open(switch['reports'][1]) as js:
-        pydict = json.load(js, object_pairs_hook=OrderedDict)
-
-    try:
-        resp['result'] = pydict[location]
+            result, options = switch[action][0](param)
     except KeyError:
         resp['success'] = False
-        resp['reason'] = 'No results for location "{}"'.format(location)
+        resp['reason'] = 'action \'{}\' not found'.format(action)
     else:
-        resp['success'] = True
+        if not result and not options:
+            resp['success'] = False
+            resp['reason'] = 'no result found for \'{}\''.format(param)
+        else:
+            resp['success'] = True
+            resp['result'] = (result, options)
     finally:
-        return json.dumps(resp)
+        return resp
 
 
-@app.get('/reports/<location>/<sector>')
-def return_reports(sector, location):
-    response.header['Content-Type'] = 'application/json'
+def handle_report_query(action, location, sector=None):
     resp = dict()
-    
-    with open(switch['reports'][1]) as js:
-        pydict = json.load(js, object_pairs_hook=OrderedDict)
+
+    def return_sector_list(loc, sec):
+        with open('data/reports.json') as f:
+            reports = json.load(f)
+
+        try:
+            result = reports[loc][sec] if sec else reports[loc]
+            return {'success': True, 'result': result}
+        except KeyError as e:
+            return {'success': False, 'reason': '{} not found'.format(e)}
 
     try:
-        resp['result'] = pydict[location][sector]
-    except KeyError as err:
+        switch[action]
+    except Exception:
         resp['success'] = False
-        resp['reason'] = '"{}" key not found:'.format(err)
+        resp['reason'] = 'only reports action takes two parameters'
     else:
-        resp['success'] = True
+        resp = return_sector_list(location, sector)
     finally:
-        return json.dumps(resp)
-
+        return resp
 
 switch = {
-    'glossary': [pb.definition, 'glossary.json'],
+    'define': [pb.definitions, 'glossary.json'],
     'use': [pb.use_classes, 'use_classes.json'],
-    'projects': [pb.get_link, 'development.json'],
-    'legal': [pb.get_link, 'legislation.json'],
+    'project': [pb.get_link, 'development.json'],
+    'doc': [pb.get_link, 'documents.json'],
     'lp': [pb.local_plan, 'local_plans.json'],
-    'reports', [pb.market_reports, 'reports.json']}
-
+    'reports': [pb.market_reports, 'reports.json']
+}

@@ -225,7 +225,7 @@ def search_docs(request):
 
     phrase = first_entity_value(entities, 'term')
     if phrase:
-        link, options = pb.get_link(phrase, 'legislation.json')
+        link, options = pb.get_link(phrase, 'documents.json')
         if link[1]:
             context['title'], context['link'] = link
         elif options:
