@@ -68,13 +68,13 @@ def manage_postbacks(pb):
 
 def fb_message(sender_id, text, q_replies, cards):
     # Send response to Facebook Graph API
-    data = {'recipient': {'id': sender_id}, 'sender_action': 'typing_on'}
+    data = {'recipient': {'id': sender_id}}
 
     data['message'] = {'text': text, 'quick_replies': q_replies} if q_replies \
         else cards if cards else {'text': text}
 
     qs = 'access_token=' + FB_PAGE_TOKEN
-    resp = requests.post('https://graph.facebook.com/me/messages?' + qs,
+    resp = requests.post('https://graph.facebook.com/v2.9/me/messages?' + qs,
                          json=data)
 
     return resp.content
