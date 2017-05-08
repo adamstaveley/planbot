@@ -109,3 +109,4 @@ switch = {
     'lp': [pb.local_plan, 'local_plans.json'],
     'reports': [pb.market_reports, 'reports.json']
 }
+

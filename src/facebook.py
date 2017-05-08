@@ -40,17 +40,18 @@ def messenger_post():
             if messages[0]:
                 message = messages[0]
                 fb_id = message['sender']['id']
-                text = message['message']['text']
-
-                logging.info('Message received: {}'.format(text))
-
-                if not text:
+                if message.get('message'):
+                    text = message['message']['text']
+                else:
                     try:
                         postback = message['postback']['payload']
                     except KeyError:
                         logging.info('No payload found in postback')
+                        text = None
                     else:
                         text = manage_postbacks(postback)
+
+                logging.info('Message received: {}'.format(text))
                 client.run_actions(session_id=fb_id, message=text)
     else:
         return 'Received Different Event'
@@ -317,12 +318,12 @@ def goodbye(request):
 
 
 postbacks = {
-    "START_PAYLOAD": "Hi",
-    "DEFINE_PAYLOAD": "Definition",
-    "INFO_PAYLOAD": "Information",
-    "POLICY_PAYLOAD": "Policy/legal",
-    "LP_PAYLOAD": "Local plan",
-    "REPORT_PAYLOAD": "Market report"
+    'GET_STARTED_PAYLOAD': 'Hi',
+    'DEFINE_PAYLOAD': 'Definition',
+    'INFO_PAYLOAD': 'Information',
+    'POLICY_PAYLOAD': 'Policy/legal',
+    'LP_PAYLOAD': 'Local plan',
+    'REPORT_PAYLOAD': 'Market report'
 }
 
 actions = {
