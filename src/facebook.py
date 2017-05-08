@@ -70,7 +70,8 @@ def manage_postbacks(pb):
 def sender_action(sender_id):
     data = {'recipient': {'id': sender_id}, 'sender_action': 'typing_on'}
     qs = 'access_token=' + FB_PAGE_TOKEN
-    resp = requests.post('https://graph.facebook.com/v2.9/me/messages?' + qs)
+    resp = requests.post('https://graph.facebook.com/v2.9/me/messages?' + qs,
+                         json=data)
 
     logging.info('sender_action received: {}'.format(resp.content))
 
