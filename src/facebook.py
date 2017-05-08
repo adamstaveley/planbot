@@ -52,6 +52,7 @@ def messenger_post():
                         text = manage_postbacks(postback)
 
                 logging.info('Message received: {}'.format(text))
+                sender_action(fb_id)
                 client.run_actions(session_id=fb_id, message=text)
     else:
         return 'Received Different Event'
@@ -64,6 +65,16 @@ def manage_postbacks(pb):
     except Exception as error:
         logging.info('A postback exception occurred:' + error)
         return pb
+
+
+def sender_action(sender_id):
+    data = {'recipient': {'id': sender_id}, 'sender_action': 'typing_on'}}
+    qs = 'access_token=' + FB_PAGE_TOKEN
+    resp = requests.post('https://graph.facebook.com/v2.9/me/messages?' + qs)
+
+    logging.info('sender_action received: {}'.format(resp.content))
+
+    return resp.content
 
 
 def fb_message(sender_id, text, q_replies, cards):
