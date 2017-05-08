@@ -186,6 +186,7 @@ def local_plan(phrase):
 
 def market_reports(loc, sec):
     loc, sec = loc.lower(), sec.lower()
+
     with open('data/reports.json') as js:
         docs = json.load(js, object_pairs_hook=OrderedDict)
 

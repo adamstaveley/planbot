@@ -98,6 +98,7 @@ def definitions(phrase):
 
 
 def use_classes(phrase):
+    phrase = phrase.lower()
     classes = open_sesame('use_classes.json')
     use = None
 
@@ -187,8 +188,8 @@ def local_plan(phrase):
 
 
 def market_reports(loc, sec):
-    # rather than joining reports and intercepting text starting with 'http'
-    # down the line, better to assign True to a template variable
+    loc, sec = loc.lower(), sec.lower()
+
     with open('data/reports.json') as js:
         docs = json.load(js, object_pairs_hook=OrderedDict)
 
