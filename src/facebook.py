@@ -73,7 +73,7 @@ def sender_action(sender_id):
     resp = requests.post('https://graph.facebook.com/v2.9/me/messages?' + qs,
                          json=data)
 
-    logging.info('sender_action received: {}'.format(resp.content))
+    # logging.info('sender_action received: {}'.format(resp.content))
 
     return resp.content
 
