@@ -73,9 +73,13 @@ def fb_message(sender_id, text, q_replies, cards):
     data['message'] = {'text': text, 'quick_replies': q_replies} if q_replies \
         else cards if cards else {'text': text}
 
+    # logging.info('data to be sent: {}'.format(data))
+
     qs = 'access_token=' + FB_PAGE_TOKEN
     resp = requests.post('https://graph.facebook.com/v2.9/me/messages?' + qs,
                          json=data)
+
+    # logging.info('received: {}'.format(resp.content))
 
     return resp.content
 
@@ -321,6 +325,8 @@ postbacks = {
     'GET_STARTED_PAYLOAD': 'Hi',
     'DEFINE_PAYLOAD': 'Definition',
     'INFO_PAYLOAD': 'Information',
+    'USE_PAYLOAD': 'Use classes',
+    'PD_PAYLOAD': 'Development',
     'POLICY_PAYLOAD': 'Policy/legal',
     'LP_PAYLOAD': 'Local plan',
     'REPORT_PAYLOAD': 'Market report'
