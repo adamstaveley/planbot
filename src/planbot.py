@@ -82,7 +82,7 @@ def definitions(phrase):
         return '{}: {}'.format(titlecase(term), glossary[term])
 
     try:
-        definition = (titecase(phrase), glossary[phrase])
+        definition = (titlecase(phrase), glossary[phrase])
     except Exception as err:
         # use only match as definition, multi-match as options
         # else find sentiment in phrase

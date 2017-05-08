@@ -282,7 +282,8 @@ def list_locations(request):
     with open('data/reports.json') as js:
         reports = json.load(js, object_pairs_hook=OrderedDict)
 
-    context['quickreplies'] = list(reports) + ['Go back']
+    locations = [pb.titlecase(loc) for loc in reports]
+    context['quickreplies'] = locations + ['Go back']
 
     return context
 
@@ -292,17 +293,19 @@ def list_sectors(request):
     entities = request['entities']
 
     global location
-    location = first_entity_value(entities, 'report_location')
+    location = first_entity_value(entities, 'report_location').lower()
 
     with open('data/reports.json') as js:
         reports = json.load(js, object_pairs_hook=OrderedDict)
 
     try:
-        context['quickreplies'] = list(reports[location]) + ['Change']
+        sectors = [pb.titlecase(sec) for sec in reports[location]]
     except KeyError:
         context['quickreplies'] = ['Change']
-
-    return context
+    else:
+        context['quickreplies'] = sectors + ['Change']
+    finally:
+        return context
 
 
 def search_reports(request):
