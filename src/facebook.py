@@ -293,13 +293,13 @@ def list_sectors(request):
     entities = request['entities']
 
     global location
-    location = first_entity_value(entities, 'report_location').lower()
+    location = first_entity_value(entities, 'report_location')
 
     with open('data/reports.json') as js:
         reports = json.load(js, object_pairs_hook=OrderedDict)
 
     try:
-        sectors = [pb.titlecase(sec) for sec in reports[location]]
+        sectors = [pb.titlecase(sec) for sec in reports[location.lower()]]
     except KeyError:
         context['quickreplies'] = ['Change']
     else:

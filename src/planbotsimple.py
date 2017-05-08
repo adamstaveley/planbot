@@ -49,6 +49,9 @@ def spell_check(phrase, keys):
 
 
 def titlecase(phrase):
+    if phrase == 'uk':
+        return phrase.upper()
+
     phrase = phrase.capitalize()
     with open('data/uncap.txt') as f:
         uncap = [line.replace('\n', '') for line in f]
