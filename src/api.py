@@ -1,6 +1,6 @@
 import json
 from bottle import Bottle, request, response, get
-import planbotsimple as pb
+import planbot as pb
 
 app = application = Bottle()
 
