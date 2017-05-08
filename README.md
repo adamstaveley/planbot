@@ -11,7 +11,7 @@ Planbot aims to provide users with a wide range of information. Currently, users
 Sources used:
 * Planning Portal
 * Gov UK
-* [*Lexicon of PRS, BtR & Property Terms*](http://www.richard-berridge.co.uk    /prs-lexicon), Richard Berridge
+* [*Lexicon of PRS, BtR & Property Terms*](http://www.richard-berridge.co.uk/prs-lexicon), Richard Berridge
 * Savills
 * Cushman & Wakefield
 * Gerald Eve
