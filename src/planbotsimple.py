@@ -199,7 +199,5 @@ def market_reports(loc, sec):
     except Exception as err:
         logging.info('market_reports exception: {}'.format(err))
         titles = reports = None
-    else:
-        reports = ' '.join(links)
     finally:
-        return titles, reports
+        return titles, links

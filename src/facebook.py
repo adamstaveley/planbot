@@ -310,6 +310,7 @@ def list_sectors(request):
 
 def search_reports(request):
     # remember to add new locations/sectors as their own wit entities
+    # limited to only 10 results
     context = request['context']
     entities = request['entities']
 
@@ -317,7 +318,8 @@ def search_reports(request):
     if sector:
         reports = pb.market_reports(location, sector)
         if reports:
-            context['title'], context['reports'] = reports
+            context['title'] = reports[0][:10]
+            context['reports'] = ', '.join(reports[1][:10])
         else:
             context['missing_report'] = True
     else:
