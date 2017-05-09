@@ -52,59 +52,25 @@
       "Central London Marketbeat - Q4 2016": "http://www.cushmanwakefield.com/~/media/reports/uk/Central%20London%20Marketbeat%20Q4%202016.pdf"
     }
   },
-  "birmingham": {
-    "commercial": {
-      "Spotlight: Birmingham Offices": "http://pdf.euro.savills.co.uk/uk/office-reports/spotlight-birmingham-offices-2017.pdf"
-    }
-  },
-  "manchester": {
-    "commercial": {
-      "Manchester Office Market": "http://pdf.euro.savills.co.uk/uk/office-reports/manchester-office-market-report-march-2017.pdf"
-    }
-  },
-  "glasgow": {
-    "overview": {
-      "Spotlight: Glasgow Real Estate - 2017": "http://pdf.euro.savills.co.uk/uk/spotlight-on/spotlight-glasgow-real-estate-2017.pdf"
-    }
-  },
-  "edinburgh": {
+  "other cities": {
     "residential": {
-      "Edinburgh City Index - Q1 2017": "https://kfcontent.blob.core.windows.net/research/585/documents/en/q1-2017-4590.pdf"
+      "Edinburgh City Index - Q1 2017": "https://kfcontent.blob.core.windows.net/research/585/documents/en/q1-2017-4590.pdf",
+      "Prime Exeter City Index - Q4 2016": "https://kfcontent.blob.core.windows.net/research/906/documents/en/q4-2016-4461.pdf"
     },
     "commercial": {
-      "Edinburgh Regional Office Reports - Q4 2016": "http://www.cushmanwakefield.com/~/media/marketbeat/2017/01/Edinburgh-Regional-Office-Reports-Q4-16.pdf"
-    }
-  },
-  "bristol": {
-    "commercial": {
-      "Spotlight: Bristol Offices - Jan 2017": "http://pdf.euro.savills.co.uk/uk/office-reports/spotlight-bristol-offices-january-2017.pdf",
-      "Bristol Regional Office Reports - Q4 2016": "http://www.cushmanwakefield.com/~/media/marketbeat/2017/01/Bristol-Regional-Office-Reports-Q4-16.pdf"
-    }
-  },
-  "leeds": {
-    "commercial": {
-      "Leeds Regional Office Reports - Q4 2016": "http://www.cushmanwakefield.com/~/media/marketbeat/2017/01/Leeds-Regional-Office-Reports-Q4-16.pdf"
-    }
-  },
-  "newcastle": {
-    "commercial": {
-      "Newcastle North East Property Market Report - 2017": "https://kfcontent.blob.core.windows.net/research/1234/documents/en/newcastle-north-east-property-market-report-4563.pdf"
-    }
-  },
-  "oxford": {
-    "commercial": {
-      "Oxford Office Market - Mar 2017": "http://pdf.euro.savills.co.uk/uk/office-reports/oxford-office-market-watch-march-2017.pdf"
-    }
-  },
-  "exeter": {
-    "residential": {
-      "Prime Exeter City Index - Q4 2016": "https://kfcontent.blob.core.windows.net/research/906/documents/en/q4-2016-4461.pdf"
-    }
-  },
-  "aberdeen": {
-    "commercial": {
       "Spotlight: Aberdeen Offices - Apr 2017": "http://pdf.euro.savills.co.uk/uk/office-reports/spotlight-aberdeen-offices-spring-2017.pdf",
-      "Aberdeen Office Market Report - 2017": "https://kfcontent.blob.core.windows.net/research/163/documents/en/2017-4522.pdf"
+      "Manchester Office Market - Mar 2017": "http://pdf.euro.savills.co.uk/uk/office-reports/manchester-office-market-report-march-2017.pdf",
+      "Oxford Office Market - Mar 2017": "http://pdf.euro.savills.co.uk/uk/office-reports/oxford-office-market-watch-march-2017.pdf",
+      "Spotlight: Birmingham Offices - 2017": "http://pdf.euro.savills.co.uk/uk/office-reports/spotlight-birmingham-offices-2017.pdf",
+      "Aberdeen Office Market Report - 2017": "https://kfcontent.blob.core.windows.net/research/163/documents/en/2017-4522.pdf",
+      "Newcastle North East Property Market Report - 2017": "https://kfcontent.blob.core.windows.net/research/1234/documents/en/newcastle-north-east-property-market-report-4563.pdf",
+      "Spotlight: Bristol Offices - Jan 2017": "http://pdf.euro.savills.co.uk/uk/office-reports/spotlight-bristol-offices-january-2017.pdf",
+      "Edinburgh Regional Office Reports - Q4 2016": "http://www.cushmanwakefield.com/~/media/marketbeat/2017/01/Edinburgh-Regional-Office-Reports-Q4-16.pdf",
+      "Bristol Regional Office Reports - Q4 2016": "http://www.cushmanwakefield.com/~/media/marketbeat/2017/01/Bristol-Regional-Office-Reports-Q4-16.pdf",
+      "Leeds Regional Office Reports - Q4 2016": "http://www.cushmanwakefield.com/~/media/marketbeat/2017/01/Leeds-Regional-Office-Reports-Q4-16.pdf"
+    },
+    "overview": {
+      "Spotlight: Glasgow Real Estate - 2017": "http://pdf.euro.savills.co.uk/uk/spotlight-on/spotlight-glasgow-real-estate-2017.pdf"
     }
   },
   "uk": {
