@@ -21,10 +21,9 @@ Sources used:
 
 ## Requirements
 * Python 3.5.2 (not currently backwards compatible with Python <=2.7)
-* Wit
-* Bottle
-* Requests
-* lxml
+* pywit
+* bottle
+* requests
 * spaCy
 * spaCy models (en, en_vectors_glove_md)
 * python-Levenshtein
