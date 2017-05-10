@@ -14,9 +14,9 @@ from celery import Celery
 # setup celery
 app = Celery('planbot',
              broker='amqp://',
-             backend='amqp://',)
+             backend='amqp://')
 
-app.conf.update(result_expires=3600)
+app.conf.update(result_expires=10, workers_max_tasks_per_child=5)
 
 # setup logging
 logging.basicConfig(level=logging.INFO)
