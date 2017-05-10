@@ -1,13 +1,16 @@
 #! python3
 # Planbot module
 
+from __future__ import absolute_import, unicode_literals
+from collections import OrderedDict
+from operator import itemgetter
 import logging
 import json
 import re
 import requests
 import Levenshtein
-from collections import OrderedDict
-from operator import itemgetter
+from .celery import app
+
 
 if __name__ == "__main__":
     print('Planbot module for querying user terms without NLP')
@@ -69,6 +72,7 @@ def titlecase(phrase):
     return phrase
 
 
+@app.task
 def definitions(phrase):
     glossary = open_sesame('glossary.json')
     definition = options = None
@@ -98,6 +102,7 @@ def definitions(phrase):
         return definition, options
 
 
+@app.task
 def use_classes(phrase):
     phrase = phrase.lower()
     classes = open_sesame('use_classes.json')
@@ -120,6 +125,7 @@ def use_classes(phrase):
         return use
 
 
+@app.task
 def get_link(phrase, filename):
     phrase = phrase.replace('...', '').lower()
     pydict = open_sesame(filename)
@@ -135,6 +141,7 @@ def get_link(phrase, filename):
     return link, options
 
 
+@app.task
 def find_lpa(postcode):
     # convert UK postcode to LPA using the postcodes.io API
     res = requests.get('https://api.postcodes.io/postcodes/' + postcode)
@@ -146,6 +153,7 @@ def find_lpa(postcode):
         return None
 
 
+@app.task
 def local_plan(phrase):
     plans = open_sesame('local_plans.json')
     title = link = None
@@ -187,6 +195,7 @@ def local_plan(phrase):
         return (title, link), options
 
 
+@app.task
 def market_reports(loc, sec):
     loc, sec = loc.lower(), sec.lower()
 

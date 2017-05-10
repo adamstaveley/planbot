@@ -5,7 +5,6 @@ import logging
 import os
 import requests
 import json
-import planbot as pb
 from collections import OrderedDict
 from wit import Wit
 from bottle import Bottle, request, debug
