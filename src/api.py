@@ -1,6 +1,6 @@
 import json
 from bottle import Bottle, request, response, get
-from planbot import definitions, use_classes, get_link, local_plan \
+from planbot import definitions, use_classes, get_link, local_plan, \
                     market_reports
 
 app = application = Bottle()
@@ -62,16 +62,16 @@ def answer_query(params):
     try:
         if action in alt_actions:
             f = switch[action][1]
-            result, options = switch[action][0].delay(param, f)
+            result, options = callback(switch[action][0].delay(param, f))
             result = None if result == (None, None) else result
         elif action == 'use':
-            result = switch[action][0](param)
+            result = callback(switch[action][0](param))
             options = None
         elif action == 'lp':
-            result, options = switch[action][0].delay(param)
+            result, options = callback(switch[action][0].delay(param))
             result = None if result == (None, None) else result
         else:
-            result, options = switch[action][0].delay(param)
+            result, options = callback(switch[action][0].delay(param))
     except KeyError:
         resp['success'] = False
         resp['reason'] = 'action \'{}\' not found'.format(action)
@@ -114,5 +114,5 @@ switch = {
     'use': [use_classes, 'use_classes.json'],
     'project': [get_link, 'development.json'],
     'doc': [get_link, 'documents.json'],
-    'lp': [local_plan, 'local_plans.json']
+    'lp': [local_plan, 'local_plans.json'],
     'reports': []}
