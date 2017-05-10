@@ -7,7 +7,11 @@ import logging
 import json
 import re
 import requests
+import spacy
 import Levenshtein
+
+# setup spaCy
+nlp = spacy.load('en_vectors_glove_md')
 
 # setup logging
 logging.basicConfig(level=logging.INFO)
@@ -21,16 +25,16 @@ def open_sesame(filename):
     return pydict
 
 
-def distance_match(phrase, keys):
-    # Return  top 3 matches with least distance above 0.5 threshold
+def sentiment(phrase, keys):
+    # Return top 3 matches over 0.5 threshold using spaCy NLP
     def ratio_gen():
         for key in keys:
-            yield key, Levenshtein.ratio(phrase, key)
+            yield key, nlp(phrase).similarity(nlp(key))
 
     entities = {key: ratio for key, ratio in ratio_gen() if ratio > 0.5}
     entities = sorted(entities, key=entities.get, reverse=True)[:3]
 
-    return entities
+    return spell_check(phrase, keys) if not entities else entities
 
 
 def spell_check(phrase, keys):
@@ -42,7 +46,7 @@ def spell_check(phrase, keys):
 
     entity = max(ratio_gen(), key=itemgetter(1))
 
-    return [entity[0]] if entity[1] > 0.75 else None
+    return [entity[0]] if entity[1] > 0.75 else []
 
 
 def titlecase(phrase):
@@ -66,14 +70,13 @@ def titlecase(phrase):
     return phrase
 
 
-
 def definitions(phrase):
     glossary = open_sesame('glossary.json')
     definition = options = None
 
     # catch accidental triggers and process phrase
     if len(phrase) < 3:
-        return definition, options
+        return None
     else:
         phrase = phrase.replace('...', '').lower()
 
@@ -84,17 +87,16 @@ def definitions(phrase):
         definition = (titlecase(phrase), glossary[phrase])
     except Exception as err:
         # use only match as definition, multi-match as options
-        # else find nearest key
+        # else find sentiment in phrase
         logging.info('definitions exception: {}'.format(err))
         options = [key for key in glossary if phrase in key]
         if len(options) == 1:
             definition = (titlecase(options[0]), glossary[options[0]])
             options = None
         elif not options:
-            options = [titlecase(k) for k in distance_match(phrase, glossary)]
+            options = [titlecase(key) for key in sentiment(phrase, glossary)]
     finally:
         return definition, options
-
 
 
 def use_classes(phrase):
@@ -107,17 +109,17 @@ def use_classes(phrase):
 
     try:
         match = [use for use in classes if phrase in use][0]
-        use = (titlecase(match), classes[match])
+        use = (match, classes[match])
     except Exception as err:
         logging.info('use_classes exception: {}'.format(err))
         if 'list' in phrase:
             use = '\n'.join(sorted(classes))
         else:
             match = spell_check(phrase, classes)
-            use = (titlecase(match[0]), classes[match[0]])
+            if match:
+                use = (match[0], classes[match[0]])
     finally:
         return use
-
 
 
 def get_link(phrase, filename):
@@ -130,10 +132,9 @@ def get_link(phrase, filename):
         link = (titlecase(options[0]), pydict[options[0]])
         options = None
     elif not options:
-        options = [titlecase(key) for key in distance_match(phrase, pydict)]
+        options = [titlecase(key) for key in sentiment(phrase, pydict)]
 
     return link, options
-
 
 
 def find_lpa(postcode):
@@ -145,7 +146,6 @@ def find_lpa(postcode):
         return data['result']['admin_district'].lower()
     except KeyError:
         return None
-
 
 
 def local_plan(phrase):
@@ -189,7 +189,6 @@ def local_plan(phrase):
         return (title, link), options
 
 
-
 def market_reports(loc, sec):
     loc, sec = loc.lower(), sec.lower()
 
@@ -204,4 +203,3 @@ def market_reports(loc, sec):
         titles = reports = None
     finally:
         return titles, links
-
