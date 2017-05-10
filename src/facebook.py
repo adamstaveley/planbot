@@ -183,7 +183,7 @@ def callback(obj):
     if obj.ready():
         return obj.get()
     else:
-        callback(obj)
+        return callback(obj)
 
 
 def search_glossary(request):

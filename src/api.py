@@ -1,11 +1,19 @@
 import json
 from bottle import Bottle, request, response, get
-import planbot as pb
+from planbot import definitions, use_classes, get_link, local_plan \
+                    market_reports
 
 app = application = Bottle()
 
 if __name__ == '__main__':
     app.run()
+
+
+def callback(obj):
+    if obj.ready():
+        return obj.get()
+    else:
+        return callback(obj)
 
 
 @app.get('/<path:path>')
@@ -54,16 +62,16 @@ def answer_query(params):
     try:
         if action in alt_actions:
             f = switch[action][1]
-            result, options = switch[action][0](param, f)
+            result, options = switch[action][0].delay(param, f)
             result = None if result == (None, None) else result
         elif action == 'use':
             result = switch[action][0](param)
             options = None
         elif action == 'lp':
-            result, options = switch[action][0](param)
+            result, options = switch[action][0].delay(param)
             result = None if result == (None, None) else result
         else:
-            result, options = switch[action][0](param)
+            result, options = switch[action][0].delay(param)
     except KeyError:
         resp['success'] = False
         resp['reason'] = 'action \'{}\' not found'.format(action)
@@ -102,11 +110,9 @@ def handle_report_query(action, location, sector=None):
         return resp
 
 switch = {
-    'define': [pb.definitions, 'glossary.json'],
-    'use': [pb.use_classes, 'use_classes.json'],
-    'project': [pb.get_link, 'development.json'],
-    'doc': [pb.get_link, 'documents.json'],
-    'lp': [pb.local_plan, 'local_plans.json'],
-    'reports': [pb.market_reports, 'reports.json']
-}
-
+    'define': [definitions, 'glossary.json'],
+    'use': [use_classes, 'use_classes.json'],
+    'project': [get_link, 'development.json'],
+    'doc': [get_link, 'documents.json'],
+    'lp': [local_plan, 'local_plans.json']
+    'reports': []}

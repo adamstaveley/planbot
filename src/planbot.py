@@ -216,5 +216,7 @@ def market_reports(loc, sec):
 
 
 if __name__ == '__main__':
-    app.start()
+    # instantiate spacy and run celery
+    # running via command line will ensure spacy is instantiated
     nlp = spacy.load('en_vectors_glove_md')
+    app.start()
