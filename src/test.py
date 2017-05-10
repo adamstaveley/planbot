@@ -8,14 +8,6 @@ import json
 import re
 import requests
 import Levenshtein
-from celery import Celery
-
-# setup celery
-app = Celery('planbotsimple',
-             broker='amqp://',
-             backend='amqp://',)
-
-app.conf.update(result_expires=3600)
 
 # setup logging
 logging.basicConfig(level=logging.INFO)
@@ -74,7 +66,7 @@ def titlecase(phrase):
     return phrase
 
 
-@app.task
+
 def definitions(phrase):
     glossary = open_sesame('glossary.json')
     definition = options = None
@@ -104,7 +96,7 @@ def definitions(phrase):
         return definition, options
 
 
-@app.task
+
 def use_classes(phrase):
     phrase = phrase.lower()
     classes = open_sesame('use_classes.json')
@@ -127,7 +119,7 @@ def use_classes(phrase):
         return use
 
 
-@app.task
+
 def get_link(phrase, filename):
     phrase = phrase.replace('...', '').lower()
     pydict = open_sesame(filename)
@@ -143,7 +135,7 @@ def get_link(phrase, filename):
     return link, options
 
 
-@app.task
+
 def find_lpa(postcode):
     # convert UK postcode to LPA using the postcodes.io API
     res = requests.get('https://api.postcodes.io/postcodes/' + postcode)
@@ -155,7 +147,7 @@ def find_lpa(postcode):
         return None
 
 
-@app.task
+
 def local_plan(phrase):
     plans = open_sesame('local_plans.json')
     title = link = None
@@ -197,7 +189,7 @@ def local_plan(phrase):
         return (title, link), options
 
 
-@app.task
+
 def market_reports(loc, sec):
     loc, sec = loc.lower(), sec.lower()
 
@@ -213,5 +205,3 @@ def market_reports(loc, sec):
     finally:
         return titles, links
 
-if __name__ == '__main__':
-    app.start()

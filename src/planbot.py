@@ -1,7 +1,6 @@
 #! python3
 # Planbot module
 
-from __future__ import absolute_import, unicode_literals
 from collections import OrderedDict
 from operator import itemgetter
 import logging
@@ -10,16 +9,18 @@ import re
 import requests
 import spacy
 import Levenshtein
-from .celery import app
+from celery import Celery
 
+# setup celery
+app = Celery('planbot',
+             broker='amqp://',
+             backend='amqp://',)
 
-if __name__ == "__main__":
-    print('Planbot module for querying user terms with NLP')
+app.conf.update(result_expires=3600)
 
+# setup logging
 logging.basicConfig(level=logging.INFO)
-
-# load spaCy glove vector models
-nlp = spacy.load('en_vectors_glove_md')
+logging.getLogger("requests").setLevel(logging.WARNING)
 
 
 def open_sesame(filename):
@@ -212,3 +213,8 @@ def market_reports(loc, sec):
         titles = reports = None
     finally:
         return titles, links
+
+
+if __name__ == '__main__':
+    app.start()
+    nlp = spacy.load('en_vectors_glove_md')

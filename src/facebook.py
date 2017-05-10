@@ -1,13 +1,15 @@
 #! python3
 # Facebook version of Planbot
 
-import logging
 import os
-import requests
+import logging
 import json
 from collections import OrderedDict
+import requests
 from wit import Wit
 from bottle import Bottle, request, debug
+from planbot import definitions, use_classes, get_link, local_plan, \
+                    market_reports, titlecase
 
 # set environmental variables
 WIT_TOKEN = os.environ.get('WIT_TOKEN')
@@ -177,6 +179,13 @@ def first_entity_value(entities, entity):
     return val['value'] if isinstance(val, dict) else val
 
 
+def callback(obj):
+    if obj.ready():
+        return obj.get()
+    else:
+        callback(obj)
+
+
 def search_glossary(request):
     # Wit.ai action functions (see below)
     context = request['context']
@@ -184,9 +193,9 @@ def search_glossary(request):
 
     phrase = first_entity_value(entities, 'term')
     if phrase:
-        definition, options = pb.definitions(phrase)
-        if definition:
-            context['definition'] = join_key_val(definition[0], definition[1])
+        res, options = callback(definitions.delay(phrase))
+        if res:
+            context['definition'] = join_key_val(res[0], res[1])
         elif options:
             context['options'] = format_options(options)
             context['quickreplies'] = options + ['Go back']
@@ -204,9 +213,9 @@ def search_classes(request):
 
     phrase = first_entity_value(entities, 'term')
     if phrase:
-        use = pb.use_classes(phrase)
-        if use:
-            context['info'] = join_key_val(use[0], use[1])
+        res = callback(use_classes.delay(phrase))
+        if res:
+            context['info'] = join_key_val(res[0], res[1])
         else:
             context['missing_use'] = True
     else:
@@ -221,9 +230,9 @@ def search_projects(request):
 
     phrase = first_entity_value(entities, 'term')
     if phrase:
-        link, options = pb.get_link(phrase, 'development.json')
-        if link[1]:
-            context['title'], context['link'] = link
+        res, options = callback(get_link.delay(phrase, 'development.json'))
+        if res[1]:
+            context['title'], context['link'] = res
         elif options:
             context['options'] = format_options(options)
             context['quickreplies'] = options + ['Go back']
@@ -241,9 +250,9 @@ def search_docs(request):
 
     phrase = first_entity_value(entities, 'term')
     if phrase:
-        link, options = pb.get_link(phrase, 'documents.json')
-        if link[1]:
-            context['title'], context['link'] = link
+        res, options = callback(get_link.delay(phrase, 'documents.json'))
+        if res[1]:
+            context['title'], context['link'] = res
         elif options:
             context['options'] = format_options(options)
             context['quickreplies'] = options + ['Go back']
@@ -261,9 +270,9 @@ def search_plans(request):
 
     location = first_entity_value(entities, 'term')
     if location:
-        plan, options = pb.local_plan(location)
-        if plan[1]:
-            context['title'], context['local_plan'] = plan
+        res, options = callback(local_plan.delay(location))
+        if res[1]:
+            context['title'], context['local_plan'] = res
         elif options:
             context['options'] = format_options(options)
             context['quickreplies'] = options + ['Go back']
@@ -298,7 +307,7 @@ def list_sectors(request):
         reports = json.load(js, object_pairs_hook=OrderedDict)
 
     try:
-        sectors = [pb.titlecase(sec) for sec in reports[location.lower()]]
+        sectors = [titlecase(sec) for sec in reports[location.lower()]]
     except KeyError:
         context['quickreplies'] = ['Change']
     else:
@@ -315,10 +324,10 @@ def search_reports(request):
 
     sector = first_entity_value(entities, 'report_sector')
     if sector:
-        reports = pb.market_reports(location, sector)
-        if reports:
-            context['title'] = reports[0][:10]
-            context['reports'] = ', '.join(reports[1][:10])
+        res = callback(market_reports.delay(location, sector))
+        if res:
+            context['title'] = res[0][:10]
+            context['reports'] = ', '.join(res[1][:10])
         else:
             context['missing_report'] = True
     else:
