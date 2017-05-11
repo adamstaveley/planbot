@@ -65,7 +65,7 @@ def answer_query(params):
             result, options = callback(switch[action][0].delay(param, f))
             result = None if result == (None, None) else result
         elif action == 'use':
-            result = callback(switch[action][0](param))
+            result = callback(switch[action][0].delay(param))
             options = None
         elif action == 'lp':
             result, options = callback(switch[action][0].delay(param))
