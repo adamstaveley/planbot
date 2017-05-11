@@ -3,6 +3,8 @@
 
 from collections import OrderedDict
 from operator import itemgetter
+import gc
+import threading
 import logging
 import json
 import re
@@ -16,11 +18,20 @@ app = Celery('planbot',
              broker='amqp://',
              backend='amqp://')
 
-app.conf.update(result_expires=10, workers_max_tasks_per_child=5)
+app.conf.update(result_expires=10, worker_max_tasks_per_child=5)
 
 # setup logging
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("requests").setLevel(logging.WARNING)
+
+
+# garbage collection
+def dump_garbage():
+    while True:
+        time.sleep(60)
+        logging.info('GARBAGE: {}'.format(gc.collect()))
+        for g in gc.garbage:
+            logging.info('GARBAGE OBJECTS: {}, {}'.format(type(g), g))
 
 
 def open_sesame(filename):
@@ -216,7 +227,9 @@ def market_reports(loc, sec):
 
 
 if __name__ == '__main__':
-    # instantiate spacy and run celery
-    # running via command line will ensure spacy is instantiated
+    # instantiate spacy, gc and celery
     nlp = spacy.load('en_vectors_glove_md')
+    gc.enable()
+    gc_thread = threading.Thread(target=dump_garbage)
+    gc_thread.start()
     app.start()
