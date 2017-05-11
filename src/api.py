@@ -1,5 +1,3 @@
-import gc
-import threading
 import json
 from bottle import Bottle, request, response, get
 from planbot import definitions, use_classes, get_link, local_plan, \
@@ -7,19 +5,7 @@ from planbot import definitions, use_classes, get_link, local_plan, \
 
 app = application = Bottle()
 
-
-def dump_garbage():
-    while True:
-        time.sleep(60)
-        logging.info('GARBAGE: {}'.format(gc.collect()))
-        for g in gc.garbage:
-            logging.info('GARBAGE OBJECTS: {}, {}'.format(type(g), g))
-
-
 if __name__ == '__main__':
-    gc.enable()
-    gc_thread = threading.Thread(target=dump_garbage)
-    gc.thread.start()
     app.run()
 
 
