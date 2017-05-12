@@ -12,7 +12,12 @@ import Levenshtein
 from celery import Celery
 
 # setup celery
-app = Celery('planbot')
+app = Celery('planbot',
+             broker='amqp://',
+             backend='amqp://')
+
+app.conf.update(result_expires=60,
+                worker_max_tasks_per_child=5)
 
 # setup logging
 logging.basicConfig(level=logging.INFO)
