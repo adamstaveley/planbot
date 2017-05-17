@@ -283,7 +283,7 @@ def list_locations(request):
     with open('data/reports.json') as js:
         reports = json.load(js, object_pairs_hook=OrderedDict)
 
-    locations = [pb.titlecase(loc) for loc in reports]
+    locations = [titlecase(loc) for loc in reports]
     context['quickreplies'] = locations + ['Go back']
 
     return context

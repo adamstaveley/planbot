@@ -117,15 +117,15 @@ def use_classes(phrase):
 
     try:
         match = [use for use in classes if phrase in use][0]
-        use = (match, classes[match])
+        use = (titlecase(match), classes[match])
     except Exception as err:
         logging.info('use_classes exception: {}'.format(err))
         if 'list' in phrase:
-            use = '\n'.join(sorted(classes))
+            use = '\n'.join(sorted(titlecase(classes)))
         else:
             match = spell_check(phrase, classes)
             if match:
-                use = (match[0], classes[match[0]])
+                use = (titlecase(match[0]), classes[match[0]])
     finally:
         return use
 
