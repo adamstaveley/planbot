@@ -45,12 +45,13 @@ def messenger_post():
                     text = message['message']['text']
                 else:
                     try:
-                        postback = message['postback']['payload']
+                        text = message['postback']['payload']
                     except KeyError:
                         logging.info('No payload found in postback')
                         text = None
                     else:
-                        text = manage_postbacks(postback)
+                        if text == 'GET_STARTED_PAYLOAD':
+                            text = 'Hi'
 
                 logging.info('Message received: {}'.format(text))
                 sender_action(fb_id)
@@ -58,14 +59,6 @@ def messenger_post():
     else:
         return 'Received Different Event'
     return None
-
-
-def manage_postbacks(pb):
-    try:
-        return postbacks[pb]
-    except Exception as error:
-        logging.info('A postback exception occurred:' + error)
-        return pb
 
 
 def sender_action(sender_id):
@@ -301,7 +294,7 @@ def list_sectors(request):
     entities = request['entities']
 
     global location
-    location = first_entity_value(entities, 'report_location')
+    location = first_entity_value(entities, 'term')
 
     with open('data/reports.json') as js:
         reports = json.load(js, object_pairs_hook=OrderedDict)
@@ -322,7 +315,7 @@ def search_reports(request):
     context = request['context']
     entities = request['entities']
 
-    sector = first_entity_value(entities, 'report_sector')
+    sector = first_entity_value(entities, 'term')
     if sector:
         res = callback(market_reports.delay(location, sector))
         if res:
@@ -345,17 +338,6 @@ def goodbye(request):
     context['exit'] = True
     return context
 
-
-postbacks = {
-    'GET_STARTED_PAYLOAD': 'Hi',
-    'DEFINE_PAYLOAD': 'Definition',
-    'INFO_PAYLOAD': 'Information',
-    'USE_PAYLOAD': 'Use classes',
-    'PD_PAYLOAD': 'Development',
-    'POLICY_PAYLOAD': 'Policy/legal',
-    'LP_PAYLOAD': 'Local plan',
-    'REPORT_PAYLOAD': 'Market report'
-}
 
 actions = {
     'send': send,
