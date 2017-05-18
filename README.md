@@ -34,11 +34,11 @@ selecting the right response to users' queries. As Wit.ai is in continual develo
 Planbot may not be 100% accurate in selecting responses.
 
 Another layer of NLP is provided by the spaCy module for Python3. This enables 
-sentiment analysis of user responses when they request information such as definitions
+semantic analysis of user responses when they request information such as definitions
 or planning documents. As spaCy is computationally expensive it is recommended that 
 the 'simple' version of Planbot is used in testing environments. This is enabled by 
 default for the local client (see below). This module uses the Levenshtein distance 
-algorithm to analyse string similarity, as such it cannot capture sentiment from user 
+algorithm to analyse string similarity, as such it cannot capture meaning from user 
 responses.
 
 ---

@@ -12,6 +12,7 @@ access_token = os.environ.get('WIT_TOKEN')
 
 
 def send(request, response):
+    '''Print response in Wit interactive client.'''
     # bug?: quickreplies persist if bot sends multiple messages in succession
     text = response['text'].decode('UTF-8')
     if not response['quickreplies']:
@@ -28,6 +29,7 @@ def send(request, response):
 
 
 def first_entity_value(entities, entity):
+    '''Extract most probably entity from array of possible entities.'''
     if entity not in entities:
         return None
     val = entities[entity][0]['value']
@@ -37,6 +39,7 @@ def first_entity_value(entities, entity):
 
 
 def search_glossary(request):
+    '''Wit function for handling definition request.'''
     context = request['context']
     entities = request['entities']
 
@@ -57,6 +60,7 @@ def search_glossary(request):
 
 
 def search_classes(request):
+    '''Wit function for handling use class request.'''
     context = request['context']
     entities = request['entities']
 
@@ -74,6 +78,7 @@ def search_classes(request):
 
 
 def search_projects(request):
+    '''Wit function for handling permitted development request.'''
     context = request['context']
     entities = request['entities']
 
@@ -94,6 +99,7 @@ def search_projects(request):
 
 
 def search_docs(request):
+    '''Wit function for handling document request.'''
     context = request['context']
     entities = request['entities']
 
@@ -114,6 +120,7 @@ def search_docs(request):
 
 
 def search_plans(request):
+    '''Wit function for handling local plan request.'''
     context = request['context']
     entities = request['entities']
 
@@ -134,6 +141,7 @@ def search_plans(request):
 
 
 def search_locations(request):
+    '''Wit function to provide possible locations via quickreplies.'''
     context = request['context']
 
     with open('data/reports.json') as js:
@@ -145,6 +153,7 @@ def search_locations(request):
 
 
 def search_sectors(request):
+    '''Wit function to provide dynamic sector quickreplies.'''
     context = request['context']
     entities = request['entities']
 
@@ -163,6 +172,7 @@ def search_sectors(request):
 
 
 def search_reports(request):
+    '''Wit function to handle report request.'''
     context = request['context']
     entities = request['entities']
 
@@ -180,9 +190,7 @@ def search_reports(request):
 
 
 def goodbye(request):
-    '''
-    update context to let send() know conversation is finished
-    '''
+    '''Update context to let send know conversation is finished'''
     context = request['context']
     context['exit'] = True
     return context

@@ -1,5 +1,17 @@
-#! python3
-# Planbot module
+#!/usr/bin/python3
+'''
+planbot is a Celery worker program which enables multiple programs to use the
+semantic analysis provided by spaCy without the need for a full module import.
+
+Messages are sent via the rabbitmq broker. API calls have access to additional
+delay, ready and get methods for handling asynchronous calls. If these methods
+are not used spaCy will fail to find semantic matches as its models will not
+be loaded on a traditional module import.
+
+All Celery tasks except use_classes and market_reports return a tuple
+consisting of a request's result and possible options. The use_classes and
+market_report functions return only the result.
+'''
 
 from collections import OrderedDict
 from operator import itemgetter
@@ -25,14 +37,15 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 
 
 def open_sesame(filename):
+    '''Open JSON file and return its contents.'''
     with open('data/' + filename) as js:
         pydict = json.load(js)
 
     return pydict
 
 
-def sentiment(phrase, keys):
-    # Return top 3 matches over 0.5 threshold using spaCy NLP
+def sem_analysis(phrase, keys):
+    '''Return top 3 semantic matches over 0.5 threshold using spaCy NLP.'''
     def ratio_gen():
         for key in keys:
             yield key, nlp(phrase).similarity(nlp(key))
@@ -44,8 +57,7 @@ def sentiment(phrase, keys):
 
 
 def spell_check(phrase, keys):
-    # Return match with least distance if above 0.7 threshold
-    # Fixed threshold may present issues with shorter strings
+    '''Return match with least distance if above 0.7 threshold.'''
     def ratio_gen():
         for key in keys:
             yield key, Levenshtein.ratio(phrase, key)
@@ -56,10 +68,13 @@ def spell_check(phrase, keys):
 
 
 def titlecase(phrase):
+    '''Turn lowercase JSON keys into titles.'''
     if phrase == 'uk':
         return phrase.upper()
 
     phrase = phrase.capitalize()
+
+    # don't capitalise certain words
     with open('data/uncap.txt') as f:
         uncap = [line.replace('\n', '') for line in f]
 
@@ -78,6 +93,7 @@ def titlecase(phrase):
 
 @app.task
 def definitions(phrase):
+    '''Celery task to handle definition request (use delay & get methods).'''
     glossary = open_sesame('glossary.json')
     definition = options = None
 
@@ -87,33 +103,27 @@ def definitions(phrase):
     else:
         phrase = phrase.replace('...', '').lower()
 
-    def process(term):
-        return '{}: {}'.format(titlecase(term), glossary[term])
-
     try:
         definition = (titlecase(phrase), glossary[phrase])
     except Exception as err:
-        # use only match as definition, multi-match as options
-        # else find sentiment in phrase
+        # definition if only match, option if more, else semantic analysis
         logging.info('definitions exception: {}'.format(err))
         options = [key for key in glossary if phrase in key]
         if len(options) == 1:
             definition = (titlecase(options[0]), glossary[options[0]])
             options = None
         elif not options:
-            options = [titlecase(key) for key in sentiment(phrase, glossary)]
+            options = [titlecase(k) for k in sem_analysis(phrase, glossary)]
     finally:
         return definition, options
 
 
 @app.task
 def use_classes(phrase):
+    '''Celery task to handle use class request (use delay & get methods).'''
     phrase = phrase.lower()
     classes = open_sesame('use_classes.json')
     use = None
-
-    def process(key):
-        return '{}: {}'.format(key, classes[key])
 
     try:
         match = [use for use in classes if phrase in use][0]
@@ -132,6 +142,7 @@ def use_classes(phrase):
 
 @app.task
 def get_link(phrase, filename):
+    '''Celery task to handle project/doc request (use delay & get methods).'''
     phrase = phrase.replace('...', '').lower()
     pydict = open_sesame(filename)
     link = (None, None)
@@ -141,13 +152,13 @@ def get_link(phrase, filename):
         link = (titlecase(options[0]), pydict[options[0]])
         options = None
     elif not options:
-        options = [titlecase(key) for key in sentiment(phrase, pydict)]
+        options = [titlecase(k) for k in sem_analysis(phrase, pydict)]
 
     return link, options
 
 
 def find_lpa(postcode):
-    # convert UK postcode to LPA using the postcodes.io API
+    '''Use postcodes.io API to convert postcode to LPA.'''
     res = requests.get('https://api.postcodes.io/postcodes/' + postcode)
     data = res.json()
 
@@ -159,9 +170,11 @@ def find_lpa(postcode):
 
 @app.task
 def local_plan(phrase):
+    '''Celery task to handle local plan request (use delay & get methods).'''
     plans = open_sesame('local_plans.json')
     title = link = None
 
+    # regex match postcodes
     if re.compile(r'[A-Z]+\d+[A-Z]?\s?\d[A-Z]+', re.I).search(phrase):
         council = find_lpa(phrase)
         if not council:
@@ -177,9 +190,11 @@ def local_plan(phrase):
     except Exception as err:
         logging.info('local_plan exception: {}'.format(err))
 
+        # remove unnecessary words
         for word in ['borough', 'council', 'district', 'london']:
             council = council.replace(word, '')
 
+        # use single option as council, run spell check if no matches
         options = [key for key in plans if council in key]
         if len(options) == 1:
             title = format_title(titlecase(options[0]))
@@ -193,7 +208,7 @@ def local_plan(phrase):
         else:
             options = [titlecase(key) for key in options]
     else:
-        title = '{} Local Plan'.format(titlecase(council))
+        title = format_title(titlecase(council))
         options = None
     finally:
         return (title, link), options
@@ -201,6 +216,7 @@ def local_plan(phrase):
 
 @app.task
 def market_reports(loc, sec):
+    '''Celery task to handle report request (use delay and get methods).'''
     loc, sec = loc.lower(), sec.lower()
 
     with open('data/reports.json') as js:
@@ -217,6 +233,6 @@ def market_reports(loc, sec):
 
 
 if __name__ == '__main__':
-    # instantiate spacy, gc and celery
+    # instantiate spacy and celery
     nlp = spacy.load('en_vectors_glove_md')
     app.start()

@@ -1,5 +1,10 @@
-#! python3
-# Planbot module
+#!/usr/binpython3
+'''
+planbotsimple is a development module. It is used in conjunction
+with localbot primarily to test the Wit API. Though it can be used in
+production, it will not capture semantic similarity of user requests
+and json keys.
+'''
 
 from collections import OrderedDict
 from operator import itemgetter
@@ -8,14 +13,6 @@ import json
 import re
 import requests
 import Levenshtein
-from celery import Celery
-
-# setup celery
-app = Celery('planbotsimple',
-             broker='amqp://',
-             backend='amqp://',)
-
-app.conf.update(result_expires=3600)
 
 # setup logging
 logging.basicConfig(level=logging.INFO)
@@ -23,6 +20,7 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 
 
 def open_sesame(filename):
+    '''Open JSON file and return its contents.'''
     with open('data/' + filename) as js:
         pydict = json.load(js)
 
@@ -30,7 +28,7 @@ def open_sesame(filename):
 
 
 def distance_match(phrase, keys):
-    # Return  top 3 matches with least distance above 0.5 threshold
+    '''Return top 3 matches with least distance above 0.5 threshold.'''
     def ratio_gen():
         for key in keys:
             yield key, Levenshtein.ratio(phrase, key)
@@ -42,8 +40,7 @@ def distance_match(phrase, keys):
 
 
 def spell_check(phrase, keys):
-    # Return match with least distance if above 0.7 threshold
-    # Fixed threshold may present issues with shorter strings
+    '''Return match with least distance if above 0.7 threshold.'''
     def ratio_gen():
         for key in keys:
             yield key, Levenshtein.ratio(phrase, key)
@@ -54,9 +51,11 @@ def spell_check(phrase, keys):
 
 
 def titlecase(phrase):
+    '''Turn lowercase JSON keys into titles.'''
     if phrase == 'uk':
         return phrase.upper()
 
+    # don't capitalise certain words
     phrase = phrase.capitalize()
     with open('data/uncap.txt') as f:
         uncap = [line.replace('\n', '') for line in f]
@@ -74,8 +73,8 @@ def titlecase(phrase):
     return phrase
 
 
-@app.task
 def definitions(phrase):
+    '''Handle definition request. Returns (result, options) tuple.'''
     glossary = open_sesame('glossary.json')
     definition = options = None
 
@@ -85,14 +84,10 @@ def definitions(phrase):
     else:
         phrase = phrase.replace('...', '').lower()
 
-    def process(term):
-        return '{}: {}'.format(titlecase(term), glossary[term])
-
     try:
         definition = (titlecase(phrase), glossary[phrase])
     except Exception as err:
-        # use only match as definition, multi-match as options
-        # else find nearest key
+        # definition if only match, option if more, else distance match
         logging.info('definitions exception: {}'.format(err))
         options = [key for key in glossary if phrase in key]
         if len(options) == 1:
@@ -104,14 +99,11 @@ def definitions(phrase):
         return definition, options
 
 
-@app.task
 def use_classes(phrase):
+    '''Handle use class request.'''
     phrase = phrase.lower()
     classes = open_sesame('use_classes.json')
     use = None
-
-    def process(key):
-        return '{}: {}'.format(key, classes[key])
 
     try:
         match = [use for use in classes if phrase in use][0]
@@ -127,8 +119,8 @@ def use_classes(phrase):
         return use
 
 
-@app.task
 def get_link(phrase, filename):
+    '''Handle project/docs request. Returns (result, options) tuple.'''
     phrase = phrase.replace('...', '').lower()
     pydict = open_sesame(filename)
     link = (None, None)
@@ -143,9 +135,8 @@ def get_link(phrase, filename):
     return link, options
 
 
-@app.task
 def find_lpa(postcode):
-    # convert UK postcode to LPA using the postcodes.io API
+    '''Use postcodes.io API to convert postcode to LPA.'''
     res = requests.get('https://api.postcodes.io/postcodes/' + postcode)
     data = res.json()
 
@@ -155,11 +146,12 @@ def find_lpa(postcode):
         return None
 
 
-@app.task
 def local_plan(phrase):
+    '''Handle local plan request. Returns (result, options) tuple.'''
     plans = open_sesame('local_plans.json')
     title = link = None
 
+    # regex match postcodes
     if re.compile(r'[A-Z]+\d+[A-Z]?\s?\d[A-Z]+', re.I).search(phrase):
         council = find_lpa(phrase)
         if not council:
@@ -175,9 +167,11 @@ def local_plan(phrase):
     except Exception as err:
         logging.info('local_plan exception: {}'.format(err))
 
+        # remove unnecessary words
         for word in ['borough', 'council', 'district', 'london']:
             council = council.replace(word, '')
 
+        # use single option if council, run spell check if no matches
         options = [key for key in plans if council in key]
         if len(options) == 1:
             title = format_title(titlecase(options[0]))
@@ -191,14 +185,14 @@ def local_plan(phrase):
         else:
             options = [titlecase(key) for key in options]
     else:
-        title = '{} Local Plan'.format(titlecase(council))
+        title = format_title(titlecase(council))
         options = None
     finally:
         return (title, link), options
 
 
-@app.task
 def market_reports(loc, sec):
+    '''Handle report request. Takes location and sector argument.'''
     loc, sec = loc.lower(), sec.lower()
 
     with open('data/reports.json') as js:
@@ -214,4 +208,4 @@ def market_reports(loc, sec):
         return titles, links
 
 if __name__ == '__main__':
-    app.start()
+    print(planbotsimple.__doc__)

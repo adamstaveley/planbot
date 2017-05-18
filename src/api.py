@@ -1,8 +1,17 @@
+#!/usr/bin/python3
+'''
+Handle GET requests to api.planbot.co domain. Returns 'result' key if
+'success' key is true, or 'reason' key if 'success' is false. The result
+value is simply the response from the relevant planbot api call.
+'''
+
 import json
+import logging
 from bottle import Bottle, request, response, get
 from planbot import definitions, use_classes, get_link, local_plan, \
                     market_reports
 
+logging.basicConfig(level=logging.INFO)
 app = application = Bottle()
 
 if __name__ == '__main__':
@@ -10,14 +19,15 @@ if __name__ == '__main__':
 
 
 def callback(obj):
-    if obj.ready():
+    try:
         return obj.get()
-    else:
-        return callback(obj)
+    except Exception as err:
+        logging.info('Callback exception: {}'.format(err))
 
 
 @app.get('/<path:path>')
 def process_params(path):
+    '''Handle GET request with relevant function call and send response.'''
     response.headers['Content-Type'] = 'application/json'
     path = path.replace('-', ' ').replace('_', ' ').replace('%20', ' ')
     params = path.strip('/').split('/')
@@ -38,6 +48,7 @@ def process_params(path):
 
 
 def return_all_data(action):
+    '''Called if no specific parameter is given for an action.'''
     resp = dict()
 
     try:
@@ -55,11 +66,13 @@ def return_all_data(action):
 
 
 def answer_query(params):
+    '''Called if a specific parameter is given for an action.'''
     action, param = params
     alt_actions = ['project', 'doc']
     resp = dict()
 
     try:
+        # messy! should standardise output of planbot functions
         if action in alt_actions:
             f = switch[action][1]
             result, options = callback(switch[action][0].delay(param, f))
@@ -87,6 +100,7 @@ def answer_query(params):
 
 
 def handle_report_query(action, location, sector=None):
+    '''Called by report action. Sector argument is optional.'''
     resp = dict()
 
     def return_sector_list(loc, sec):
