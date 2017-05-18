@@ -293,14 +293,14 @@ def list_sectors(request):
     context = request['context']
     entities = request['entities']
 
-    global location
-    location = first_entity_value(entities, 'term')
+    global LOCATION
+    LOCATION = first_entity_value(entities, 'term')
 
     with open('data/reports.json') as js:
         reports = json.load(js, object_pairs_hook=OrderedDict)
 
     try:
-        sectors = [titlecase(sec) for sec in reports[location.lower()]]
+        sectors = [titlecase(sec) for sec in reports[LOCATION.lower()]]
     except KeyError:
         context['quickreplies'] = ['Change']
     else:
@@ -316,8 +316,9 @@ def search_reports(request):
     entities = request['entities']
 
     sector = first_entity_value(entities, 'term')
+    assert LOCATION
     if sector:
-        res = callback(market_reports.delay(location, sector))
+        res = callback(market_reports.delay(LOCATION, sector))
         if res:
             context['title'] = res[0][:10]
             context['reports'] = ', '.join(res[1][:10])
@@ -326,6 +327,7 @@ def search_reports(request):
     else:
         context['missing_report'] = True
 
+    del LOCATION
     return context
 
 
