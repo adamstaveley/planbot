@@ -30,6 +30,7 @@ logging.basicConfig(level=logging.INFO)
 @app.get('/webhook')
 def messenger_webhook():
     '''Validate GET request.'''
+
     verify_token = request.query.get('hub.verify_token')
     if verify_token == FB_VERIFY_TOKEN:
         challenge = request.query.get('hub.challenge')
@@ -41,6 +42,7 @@ def messenger_webhook():
 @app.post('/webhook')
 def messenger_post():
     '''Extract message from POST request and send to Wit.'''
+
     data = request.json
     if data['object'] == 'page':
         for entry in data['entry']:
@@ -69,6 +71,7 @@ def messenger_post():
 
 def sender_action(sender_id):
     '''POST typing action before response.'''
+
     data = {'recipient': {'id': sender_id}, 'sender_action': 'typing_on'}
     qs = 'access_token=' + FB_PAGE_TOKEN
     resp = requests.post('https://graph.facebook.com/v2.9/me/messages?' + qs,
@@ -81,6 +84,7 @@ def sender_action(sender_id):
 
 def fb_message(sender_id, text, q_replies, cards):
     '''POST response to Facebook Graph API.'''
+
     data = {'recipient': {'id': sender_id}}
 
     data['message'] = {'text': text, 'quick_replies': q_replies} if q_replies \
@@ -99,6 +103,7 @@ def fb_message(sender_id, text, q_replies, cards):
 
 def send(request, response):
     '''Process response before sending to Facebook.'''
+
     fb_id = request['session_id']
     text = response['text'].decode('UTF-8')
     q_replies = cards = None
@@ -129,6 +134,7 @@ def send(request, response):
 
 def format_qr(quickreplies):
     '''Format an array of quickreplies for the Facebook Graph API.'''
+
     return [{
         'title': qr,
         'content_type': 'text',
@@ -138,6 +144,7 @@ def format_qr(quickreplies):
 
 def template(titles, urls):
     ''''Format URLs into generic templates for the Facebook Graph API.'''
+
     if not isinstance(titles, list):
         titles = [titles]
     if not isinstance(urls, list):
@@ -164,16 +171,19 @@ def template(titles, urls):
 
 def join_key_val(key, value):
     '''Concatenate e.g. a term and its definition.'''
+
     return '{}: {}'.format(key, value)
 
 
 def format_options(options):
     '''Create a bullet point list of options.'''
+
     return '\n\u2022 {}'.format('\n\u2022 '.join(options))
 
 
 def first_entity_value(entities, entity):
     '''Extract the most probable entity from all entities given by Wit.'''
+
     if entity not in entities:
         return None
     val = entities[entity][0]['value']
@@ -184,6 +194,7 @@ def first_entity_value(entities, entity):
 
 def callback(obj):
     '''Handle celery response.'''
+
     try:
         return obj.get()
     except Exception as err:
@@ -192,6 +203,7 @@ def callback(obj):
 
 def search_glossary(request):
     '''Wit function for returning glossary response.'''
+
     context = request['context']
     entities = request['entities']
 
@@ -213,6 +225,7 @@ def search_glossary(request):
 
 def search_classes(request):
     '''Wit function for returning use class response.'''
+
     context = request['context']
     entities = request['entities']
 
@@ -231,6 +244,7 @@ def search_classes(request):
 
 def search_projects(request):
     '''Wit function for returning permitted development response.'''
+
     context = request['context']
     entities = request['entities']
 
@@ -252,6 +266,7 @@ def search_projects(request):
 
 def search_docs(request):
     '''Wit function for returning policy/legislation response.'''
+
     context = request['context']
     entities = request['entities']
 
@@ -273,6 +288,7 @@ def search_docs(request):
 
 def search_plans(request):
     '''Wit function for returning local plan response.'''
+
     context = request['context']
     entities = request['entities']
 
@@ -294,6 +310,7 @@ def search_plans(request):
 
 def list_locations(request):
     '''Wit function for returning report location quickreplies.'''
+
     context = request['context']
 
     with open('data/reports.json') as js:
@@ -307,6 +324,7 @@ def list_locations(request):
 
 def list_sectors(request):
     '''Wit function for returning dynamic report sector quickreplies.'''
+
     context = request['context']
     entities = request['entities']
 
@@ -328,7 +346,7 @@ def list_sectors(request):
 
 def search_reports(request):
     '''Wit function for returning report response (limited to 10 templates).'''
-    
+
     context = request['context']
     entities = request['entities']
 
@@ -353,12 +371,13 @@ def provide_contact_links(request):
 
     context = request['context']
     context['title'] = ['My website', 'My Facebook page']
-    context['links'] = ['https://planbot.co', 'https://fb.me/planbotco'] 
+    context['links'] = 'https://planbot.co https://fb.me/planbotco'
     return context
 
 
 def goodbye(request):
     '''Let send function know that context should always be flushed.'''
+
     context = request['context']
     context['exit'] = True
     return context
