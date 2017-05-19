@@ -57,8 +57,7 @@ def messenger_post():
                         logging.info('No payload found in postback')
                         text = None
                     else:
-                        if text == 'GET_STARTED_PAYLOAD':
-                            text = 'Hi'
+                        text = 'Hi' if text == 'GET_STARTED_PAYLOAD' else text
 
                 logging.info('Message received: {}'.format(text))
                 sender_action(fb_id)
@@ -329,6 +328,7 @@ def list_sectors(request):
 
 def search_reports(request):
     '''Wit function for returning report response (limited to 10 templates).'''
+    
     context = request['context']
     entities = request['entities']
 
@@ -345,6 +345,15 @@ def search_reports(request):
         context['missing_report'] = True
 
     del LOCATION
+    return context
+
+
+def provide_contact_links(request):
+    '''Produce an array of contact links for CONTACT_PAYLOAD story'''
+
+    context = request['context']
+    context['title'] = ['My website', 'My Facebook page']
+    context['links'] = ['https://planbot.co', 'https://fb.me/planbotco'] 
     return context
 
 
@@ -366,6 +375,7 @@ actions = {
     'get_locations': list_locations,
     'get_sectors': list_sectors,
     'get_reports': search_reports,
+    'contact_template': provide_contact_links,
     'goodbye': goodbye
 }
 

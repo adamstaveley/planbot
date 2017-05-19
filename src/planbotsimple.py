@@ -208,4 +208,4 @@ def market_reports(loc, sec):
         return titles, links
 
 if __name__ == '__main__':
-    print(planbotsimple.__doc__)
+    print(__doc__)
