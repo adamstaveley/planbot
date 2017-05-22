@@ -25,8 +25,8 @@ from celery import Celery
 
 # setup celery
 app = Celery('planbot',
-             broker='amqp://',
-             backend='amqp://')
+             broker='redis://',
+             backend='redis://')
 
 app.conf.update(result_expires=60,
                 worker_max_tasks_per_child=5)
@@ -38,6 +38,7 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 
 def open_sesame(filename):
     '''Open JSON file and return its contents.'''
+
     with open('data/' + filename) as js:
         pydict = json.load(js)
 
@@ -46,6 +47,7 @@ def open_sesame(filename):
 
 def sem_analysis(phrase, keys):
     '''Return top 3 semantic matches over 0.5 threshold using spaCy NLP.'''
+
     def ratio_gen():
         for key in keys:
             yield key, nlp(phrase).similarity(nlp(key))
@@ -58,6 +60,7 @@ def sem_analysis(phrase, keys):
 
 def spell_check(phrase, keys):
     '''Return match with least distance if above 0.7 threshold.'''
+
     def ratio_gen():
         for key in keys:
             yield key, Levenshtein.ratio(phrase, key)
@@ -69,6 +72,7 @@ def spell_check(phrase, keys):
 
 def titlecase(phrase):
     '''Turn lowercase JSON keys into titles.'''
+
     if phrase == 'uk':
         return phrase.upper()
 
@@ -93,7 +97,8 @@ def titlecase(phrase):
 
 @app.task
 def definitions(phrase):
-    '''Celery task to handle definition request (use delay & get methods).'''
+    '''Celery task to handle definition request.'''
+
     glossary = open_sesame('glossary.json')
     definition = options = None
 
@@ -120,7 +125,8 @@ def definitions(phrase):
 
 @app.task
 def use_classes(phrase):
-    '''Celery task to handle use class request (use delay & get methods).'''
+    '''Celery task to handle use class request.'''
+
     phrase = phrase.lower()
     classes = open_sesame('use_classes.json')
     use = None
@@ -143,6 +149,7 @@ def use_classes(phrase):
 @app.task
 def get_link(phrase, filename):
     '''Celery task to handle project/doc request (use delay & get methods).'''
+
     phrase = phrase.replace('...', '').lower()
     pydict = open_sesame(filename)
     link = (None, None)
@@ -159,6 +166,7 @@ def get_link(phrase, filename):
 
 def find_lpa(postcode):
     '''Use postcodes.io API to convert postcode to LPA.'''
+
     res = requests.get('https://api.postcodes.io/postcodes/' + postcode)
     data = res.json()
 
@@ -171,6 +179,7 @@ def find_lpa(postcode):
 @app.task
 def local_plan(phrase):
     '''Celery task to handle local plan request (use delay & get methods).'''
+
     plans = open_sesame('local_plans.json')
     title = link = None
 
@@ -217,6 +226,7 @@ def local_plan(phrase):
 @app.task
 def market_reports(loc, sec):
     '''Celery task to handle report request (use delay and get methods).'''
+
     loc, sec = loc.lower(), sec.lower()
 
     with open('data/reports.json') as js:
@@ -230,6 +240,15 @@ def market_reports(loc, sec):
         titles = reports = None
     finally:
         return titles, links
+
+
+__all__ = [
+    'titlecase',
+    'definitions',
+    'use_classes',
+    'get_link',
+    'local_plan',
+    'market_reports']
 
 
 if __name__ == '__main__':

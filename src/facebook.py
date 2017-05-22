@@ -9,10 +9,10 @@ import logging
 import json
 from collections import OrderedDict
 import requests
+import redis
 from wit import Wit
 from bottle import Bottle, request, debug
-from planbot import definitions, use_classes, get_link, local_plan, \
-                    market_reports, titlecase
+from planbot import *
 
 # set environmental variables
 WIT_TOKEN = os.environ.get('WIT_TOKEN')
@@ -325,17 +325,19 @@ def list_locations(request):
 def list_sectors(request):
     '''Wit function for returning dynamic report sector quickreplies.'''
 
+    user = request['session_id']
     context = request['context']
     entities = request['entities']
 
-    global LOCATION
-    LOCATION = first_entity_value(entities, 'term')
+    location = first_entity_value(entities, 'term')
+    store = redis.Redis(connection_pool=redis.ConnectionPool())
+    store.set(user, location)
 
     with open('data/reports.json') as js:
         reports = json.load(js, object_pairs_hook=OrderedDict)
 
     try:
-        sectors = [titlecase(sec) for sec in reports[LOCATION.lower()]]
+        sectors = [titlecase(sec) for sec in reports[location.lower()]]
     except KeyError:
         context['quickreplies'] = ['Change']
     else:
@@ -347,13 +349,15 @@ def list_sectors(request):
 def search_reports(request):
     '''Wit function for returning report response (limited to 10 templates).'''
 
+    user = request['session_id']
     context = request['context']
     entities = request['entities']
 
+    store = redis.Redis(connection_pool=redis.ConnectionPool())
+    location = store.get(user)
     sector = first_entity_value(entities, 'term')
-    assert LOCATION
     if sector:
-        res = callback(market_reports.delay(LOCATION, sector))
+        res = callback(market_reports.delay(location, sector))
         if res:
             context['title'] = res[0][:10]
             context['reports'] = ', '.join(res[1][:10])
@@ -362,7 +366,6 @@ def search_reports(request):
     else:
         context['missing_report'] = True
 
-    del LOCATION
     return context
 
 
