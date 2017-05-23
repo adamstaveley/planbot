@@ -6,4 +6,4 @@ spacy==1.7.3
 en-core-web-sm==1.2.0
 en-vectors-glove-md==1.0.0
 celery==4.0.2
-amqp==2.1.4
+redis==2.10.5

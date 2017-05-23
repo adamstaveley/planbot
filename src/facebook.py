@@ -58,8 +58,6 @@ def messenger_post():
                     except KeyError:
                         logging.info('No payload found in postback')
                         text = None
-                    else:
-                        text = 'Hi' if text == 'GET_STARTED_PAYLOAD' else text
 
                 logging.info('Message received: {}'.format(text))
                 sender_action(fb_id)
@@ -214,7 +212,7 @@ def search_glossary(request):
             context['definition'] = join_key_val(res[0], res[1])
         elif options:
             context['options'] = format_options(options)
-            context['quickreplies'] = options + ['Go back']
+            context['quickreplies'] = options + ['Cancel']
         else:
             context['missing_def'] = True
     else:
@@ -255,7 +253,7 @@ def search_projects(request):
             context['title'], context['link'] = res
         elif options:
             context['options'] = format_options(options)
-            context['quickreplies'] = options + ['Go back']
+            context['quickreplies'] = options + ['Cancel']
         else:
             context['missing_link'] = True
     else:
@@ -277,7 +275,7 @@ def search_docs(request):
             context['title'], context['link'] = res
         elif options:
             context['options'] = format_options(options)
-            context['quickreplies'] = options + ['Go back']
+            context['quickreplies'] = options + ['Cancel']
         else:
             context['missing_link'] = True
     else:
@@ -299,7 +297,7 @@ def search_plans(request):
             context['title'], context['local_plan'] = res
         elif options:
             context['options'] = format_options(options)
-            context['quickreplies'] = options + ['Go back']
+            context['quickreplies'] = options + ['Cancel']
         else:
             context['missing_loc'] = True
     else:
@@ -317,7 +315,7 @@ def list_locations(request):
         reports = json.load(js, object_pairs_hook=OrderedDict)
 
     locations = [titlecase(loc) for loc in reports]
-    context['quickreplies'] = locations + ['Go back']
+    context['quickreplies'] = locations + ['Cancel']
 
     return context
 

@@ -20,13 +20,15 @@ Sources used:
 ---
 
 ## Requirements
-* Python 3.5.2 (not currently backwards compatible with Python <=2.7)
-* pywit
+* Python 3.5 (not currently backwards compatible with Python <=2.7)
+* wit
 * bottle
 * requests
-* spaCy
+* spaCy 
 * spaCy models (en, en_vectors_glove_md)
 * python-Levenshtein
+* celery 
+* redis
 
 The chatbot uses the [Wit.ai](https://github.com/wit-ai/pywit) Python module to handle
 responses. Wit.ai provides a method of Natural Language Processing (NLP) which aids in

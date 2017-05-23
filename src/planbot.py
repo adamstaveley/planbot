@@ -148,7 +148,7 @@ def use_classes(phrase):
 
 @app.task
 def get_link(phrase, filename):
-    '''Celery task to handle project/doc request (use delay & get methods).'''
+    '''Celery task to handle project/doc request.'''
 
     phrase = phrase.replace('...', '').lower()
     pydict = open_sesame(filename)
@@ -178,7 +178,7 @@ def find_lpa(postcode):
 
 @app.task
 def local_plan(phrase):
-    '''Celery task to handle local plan request (use delay & get methods).'''
+    '''Celery task to handle local plan request.'''
 
     plans = open_sesame('local_plans.json')
     title = link = None
@@ -225,7 +225,7 @@ def local_plan(phrase):
 
 @app.task
 def market_reports(loc, sec):
-    '''Celery task to handle report request (use delay and get methods).'''
+    '''Celery task to handle report request.'''
 
     loc, sec = loc.lower(), sec.lower()
 
