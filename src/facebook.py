@@ -75,8 +75,6 @@ def sender_action(sender_id):
     resp = requests.post('https://graph.facebook.com/v2.9/me/messages?' + qs,
                          json=data)
 
-    # logging.info('sender_action received: {}'.format(resp.content))
-
     return resp.content
 
 
@@ -93,8 +91,6 @@ def fb_message(sender_id, text, q_replies, cards):
     qs = 'access_token=' + FB_PAGE_TOKEN
     resp = requests.post('https://graph.facebook.com/v2.9/me/messages?' + qs,
                          json=data)
-
-    # logging.info('received: {}'.format(resp.content))
 
     return resp.content
 
@@ -121,11 +117,6 @@ def send(request, response):
             titles = ('Null ' * len(urls)).split()
 
         cards = template(titles, urls)
-
-    # flush context and session_id if conversation ends
-    if request['context'].get('exit'):
-        request.clear()
-        response.clear()
 
     fb_message(fb_id, text, q_replies, cards)
 
@@ -167,16 +158,15 @@ def template(titles, urls):
                 "elements": elements}}}
 
 
-def join_key_val(key, value):
-    '''Concatenate e.g. a term and its definition.'''
+def format_text(key=None, value=None, options=None, _list=None):
+    '''Provide formatting for different response types.'''
 
-    return '{}: {}'.format(key, value)
-
-
-def format_options(options):
-    '''Create a bullet point list of options.'''
-
-    return '\n\u2022 {}'.format('\n\u2022 '.join(options))
+    if key and value:
+        return '{}: {}'.format(key, value)
+    elif options:
+        return '\n\u2022 {}'.format('\n\u2022 '.join(options))
+    elif _list:
+        return '\n'.join(sorted(list))
 
 
 def first_entity_value(entities, entity):
@@ -209,7 +199,7 @@ def search_glossary(request):
     if phrase:
         res, options = callback(definitions.delay(phrase))
         if res:
-            context['definition'] = join_key_val(res[0], res[1])
+            context['definition'] = format_text(key=res[0], value=res[1])
         elif options:
             context['options'] = format_options(options)
             context['quickreplies'] = options + ['Cancel']
@@ -231,7 +221,10 @@ def search_classes(request):
     if phrase:
         res = callback(use_classes.delay(phrase))
         if res:
-            context['info'] = join_key_val(res[0], res[1])
+            if isinstance(res, list):
+                context['info'] = format_text(_list=res)
+            else:
+                context['info'] = format_text(key=res[0], value=res[1])
         else:
             context['missing_use'] = True
     else:
@@ -252,7 +245,7 @@ def search_projects(request):
         if res[1]:
             context['title'], context['link'] = res
         elif options:
-            context['options'] = format_options(options)
+            context['options'] = format_text(options=options)
             context['quickreplies'] = options + ['Cancel']
         else:
             context['missing_link'] = True
@@ -274,7 +267,7 @@ def search_docs(request):
         if res[1]:
             context['title'], context['link'] = res
         elif options:
-            context['options'] = format_options(options)
+            context['options'] = format_text(options=options)
             context['quickreplies'] = options + ['Cancel']
         else:
             context['missing_link'] = True
@@ -296,7 +289,7 @@ def search_plans(request):
         if res[1]:
             context['title'], context['local_plan'] = res
         elif options:
-            context['options'] = format_options(options)
+            context['options'] = format_text(options=options)
             context['quickreplies'] = options + ['Cancel']
         else:
             context['missing_loc'] = True
@@ -395,8 +388,7 @@ actions = {
     'get_locations': list_locations,
     'get_sectors': list_sectors,
     'get_reports': search_reports,
-    'contact_template': provide_contact_links,
-    'goodbye': goodbye
+    'contact_template': provide_contact_links
 }
 
 client = Wit(access_token=WIT_TOKEN, actions=actions)

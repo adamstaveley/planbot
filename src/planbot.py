@@ -137,7 +137,7 @@ def use_classes(phrase):
     except Exception as err:
         logging.info('use_classes exception: {}'.format(err))
         if 'list' in phrase:
-            use = '\n'.join(sorted(titlecase(classes)))
+            use = [titlecase(k) for k in classes]
         else:
             match = spell_check(phrase, classes)
             if match:
