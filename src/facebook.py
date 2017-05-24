@@ -158,15 +158,15 @@ def template(titles, urls):
                 "elements": elements}}}
 
 
-def format_text(key=None, value=None, options=None, _list=None):
+def format_text(key=None, value=None, options=None, list_=None):
     '''Provide formatting for different response types.'''
 
     if key and value:
         return '{}: {}'.format(key, value)
     elif options:
         return '\n\u2022 {}'.format('\n\u2022 '.join(options))
-    elif _list:
-        return '\n'.join(sorted(list))
+    elif list_:
+        return '\n'.join(sorted(list_))
 
 
 def first_entity_value(entities, entity):
