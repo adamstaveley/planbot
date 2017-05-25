@@ -19,17 +19,6 @@ Sources used:
 
 ---
 
-## Requirements
-* Python 3.5 (not currently backwards compatible with Python <=2.7)
-* wit
-* bottle
-* requests
-* spaCy 
-* spaCy models (en, en_vectors_glove_md)
-* python-Levenshtein
-* celery 
-* redis
-
 The chatbot uses the [Wit.ai](https://github.com/wit-ai/pywit) Python module to handle
 responses. Wit.ai provides a method of Natural Language Processing (NLP) which aids in
 selecting the right response to users' queries. As Wit.ai is in continual development,
@@ -37,11 +26,11 @@ Planbot may not be 100% accurate in selecting responses.
 
 Another layer of NLP is provided by the spaCy module for Python3. This enables 
 semantic analysis of user responses when they request information such as definitions
-or planning documents. As spaCy is computationally expensive it is recommended that 
-the 'simple' version of Planbot is used in testing environments. This is enabled by 
-default for the local client (see below). This module uses the Levenshtein distance 
-algorithm to analyse string similarity, as such it cannot capture meaning from user 
-responses.
+or planning documents. As spaCy is computationally expensive it is recommended that the 
+planbot module be run as a background process using a message broker, else there is a 
+'simple' version which can be used in testing environments. This module uses the 
+Levenshtein distance algorithm to analyse string similarity, as such it cannot capture 
+meaning from user responses.
 
 ---
 
@@ -57,15 +46,18 @@ responses.
 * Create a virtual environment using `python3 -m venv [name]` and
     activate it with `source [name]/bin/activate`
 * Install dependencies:`pip install -r requirements-simple.txt`
-* Run the Wit.ai interactive client: `python3 data/localbot.py`
+* Run the Wit.ai interactive client: `python3 old/localbot.py`
 
 `localbot.py` requires the `WIT_TOKEN` environmental variable to run. This is the 
 recommended way to store the token, which provides access to the Wit.ai server where 
 the natural language processing elements are stored. Feel free to ask for this access 
 token.
 
-This version of planbot uses the planbotsimple module by default. If you would like to 
+This version of Planbot uses the planbotsimple module by default. If you would like to 
 test spaCy in the local client:
 
 * `pip install -r requirements.txt`
-* Switch `import planbotsimple as pb` to `import planbot as pb` in `localbot.py`
+* Switch `import planbotsimple as pb` to `import planbotold as pb` in `localbot.py`
+
+Note that the localbot version is not rarely maintained and as such may need a few
+small changes to get up and running.

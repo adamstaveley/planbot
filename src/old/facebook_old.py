@@ -304,11 +304,13 @@ def list_locations(request):
     '''Wit function for returning report location quickreplies.'''
 
     context = request['context']
-    reports = ConnectDB('reports')
-    locations = [titlecase(loc) for loc in reports.distinct_locations()]
+
+    with open('data/reports.json') as js:
+        reports = json.load(js, object_pairs_hook=OrderedDict)
+
+    locations = [titlecase(loc) for loc in reports]
     context['quickreplies'] = locations + ['Cancel']
 
-    reports.close()
     return context
 
 
@@ -323,12 +325,17 @@ def list_sectors(request):
     store = redis.Redis(connection_pool=redis.ConnectionPool())
     store.set(user, location)
 
-    reports = ConnectDB('reports')
-    sectors = [titlecase(sec) for sec in reports.distinct_sectors(location)]
-    context['quickreplies'] = sectors + ['Change']
+    with open('data/reports.json') as js:
+        reports = json.load(js, object_pairs_hook=OrderedDict)
 
-    reports.close()
-    return context
+    try:
+        sectors = [titlecase(sec) for sec in reports[location.lower()]]
+    except KeyError:
+        context['quickreplies'] = ['Change']
+    else:
+        context['quickreplies'] = sectors + ['Change']
+    finally:
+        return context
 
 
 def search_reports(request):

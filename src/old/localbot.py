@@ -144,7 +144,7 @@ def search_locations(request):
     '''Wit function to provide possible locations via quickreplies.'''
     context = request['context']
 
-    with open('data/reports.json') as js:
+    with open('../data/reports.json') as js:
         reports = json.load(js, object_pairs_hook=OrderedDict)
 
     context['quickreplies'] = list(reports) + ['Go back']
@@ -160,7 +160,7 @@ def search_sectors(request):
     global location
     location = first_entity_value(entities, 'report_location')
 
-    with open('data/reports.json') as js:
+    with open('../data/reports.json') as js:
         reports = json.load(js, object_pairs_hook=OrderedDict)
 
     try:
