@@ -3,7 +3,7 @@ from psycopg2.sql import SQL, Identifier
 
 
 class ConnectDB():
-    '''Connect to the planbot database and access a table.'''
+    """Connect to the planbot database and access a table."""
 
     tables = ['glossary', 'use_classes', 'projects', 'documents',
               'local_plans', 'reports']
@@ -17,16 +17,16 @@ class ConnectDB():
             self.table = table
 
     def query_keys(self):
-        '''Return all keys from a table.'''
+        """Return all keys from a table."""
 
         self.cursor.execute(SQL("SELECT key FROM {}").format(
             Identifier(self.table)))
         return [k[0] for k in self.cursor.fetchall()]
 
     def query_spec(self, phrase, spec=None):
-        '''Submit a database lookup. The spec kwarg takes one of 'EQL' or
+        """Submit a database lookup. The spec kwarg takes one of 'EQL' or
            'LIKE' for respective lookup types. EQL returns a sole key-value
-           whereas LIKE returns multiple keys where the query is found.'''
+           whereas LIKE returns multiple keys where the query is found."""
 
         assert spec in ['EQL', 'LIKE']
         if spec == 'EQL':
@@ -44,7 +44,7 @@ class ConnectDB():
         return res
 
     def distinct_locations(self):
-        '''Returns only unique report locations.'''
+        """Returns only unique report locations."""
 
         assert self.table == 'reports'
         self.cursor.execute("SELECT DISTINCT location FROM reports")
@@ -52,18 +52,18 @@ class ConnectDB():
         return [r[0] for r in res]
 
     def distinct_sectors(self, loc):
-        '''Returns only unique report sectors for a given location.'''
+        """Returns only unique report sectors for a given location."""
 
         assert self.table == 'reports'
         self.cursor.execute('''SELECT DISTINCT sector FROM reports
                                WHERE location=%s''', [loc])
 
-        res = self.sector.fetchall()
+        res = self.cursor.fetchall()
         return [r[0] for r in res]
 
     def query_reports(self, loc=None, sec=None):
-        '''Returns report table query given a location and sector,
-           sorted by date.'''
+        """Returns report table query given a location and sector,
+           sorted by date."""
 
         assert self.table == 'reports'
 
@@ -78,7 +78,7 @@ class ConnectDB():
                                    WHERE location=%s''', [loc])
 
         else:
-            # location and sector -> return date-ordered reports 
+            # location and sector -> return date-ordered reports
             self.cursor.execute('''SELECT title, url FROM reports
                                    WHERE location=%s AND sector=%s
                                    ORDER BY date DESC''', (loc, sec))
@@ -86,6 +86,6 @@ class ConnectDB():
         return self.cursor.fetchall()
 
     def close(self):
-        '''Close connection to database.'''
+        """Close connection to database."""
 
         self.conn.close()

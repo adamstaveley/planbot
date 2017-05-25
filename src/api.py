@@ -1,10 +1,11 @@
 #!/usr/bin/python3
-'''
+"""
 Handle GET requests to api.planbot.co domain. Returns 'result' key if
 'success' key is true, or 'reason' key if 'success' is false. The result
 value is simply the response from the relevant planbot api call.
-'''
+"""
 
+import json
 import logging
 from bottle import Bottle, request, response, get
 from planbot import *
@@ -18,6 +19,8 @@ if __name__ == '__main__':
 
 
 def callback(obj):
+    """Handle celery response."""
+
     try:
         return obj.get()
     except Exception as err:
@@ -26,7 +29,7 @@ def callback(obj):
 
 @app.get('/<path:path>')
 def process_params(path):
-    '''Handle GET request with relevant function call and send response.'''
+    """Handle GET request with relevant function call and send response."""
 
     response.headers['Content-Type'] = 'application/json'
     path = path.replace('-', ' ').replace('_', ' ').replace('%20', ' ')
@@ -48,7 +51,7 @@ def process_params(path):
 
 
 def return_all_data(action):
-    '''Called if no specific parameter is given for an action.'''
+    """Called if no specific parameter is given for an action."""
 
     resp = dict()
 
@@ -64,13 +67,13 @@ def return_all_data(action):
     else:
         resp['success'] = True
         resp['result'] = res
-    finally:
         db.close()
+    finally:
         return resp
 
 
 def answer_query(params):
-    '''Called if a specific parameter is given for an action.'''
+    """Called if a specific parameter is given for an action."""
 
     action, param = params
     alt_actions = ['project', 'doc']
@@ -78,8 +81,8 @@ def answer_query(params):
 
     try:
         if action in alt_actions:
-            function, db = switch[action]
-            res, options = callback(function.delay(param, db))
+            fun, db = switch[action]
+            result, options = callback(fun.delay(param, db))
         else:
             result, options = callback(switch[action][0].delay(param))
     except KeyError:
@@ -97,7 +100,7 @@ def answer_query(params):
 
 
 def handle_report_query(location=None, sector=None):
-    '''Called by report action. Sector argument is optional.'''
+    """Called by report action. Sector argument is optional."""
 
     resp = dict()
     res = None

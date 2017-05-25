@@ -1,8 +1,8 @@
 #!/usr/bin/python3
-'''
+"""
 Planbot's Facebook application. Handles requests and responses through the
 Wit and Facebook Graph APIs.
-'''
+"""
 
 import os
 import logging
@@ -29,7 +29,7 @@ logging.basicConfig(level=logging.INFO)
 
 @app.get('/webhook')
 def messenger_webhook():
-    '''Validate GET request.'''
+    """Validate GET request."""
 
     verify_token = request.query.get('hub.verify_token')
     if verify_token == FB_VERIFY_TOKEN:
@@ -41,7 +41,7 @@ def messenger_webhook():
 
 @app.post('/webhook')
 def messenger_post():
-    '''Extract message from POST request and send to Wit.'''
+    """Extract message from POST request and send to Wit."""
 
     data = request.json
     if data['object'] == 'page':
@@ -68,7 +68,7 @@ def messenger_post():
 
 
 def sender_action(sender_id):
-    '''POST typing action before response.'''
+    """POST typing action before response."""
 
     data = {'recipient': {'id': sender_id}, 'sender_action': 'typing_on'}
     qs = 'access_token=' + FB_PAGE_TOKEN
@@ -79,7 +79,7 @@ def sender_action(sender_id):
 
 
 def fb_message(sender_id, text, q_replies, cards):
-    '''POST response to Facebook Graph API.'''
+    """POST response to Facebook Graph API."""
 
     data = {'recipient': {'id': sender_id}}
 
@@ -96,7 +96,7 @@ def fb_message(sender_id, text, q_replies, cards):
 
 
 def send(request, response):
-    '''Process response before sending to Facebook.'''
+    """Process response before sending to Facebook."""
 
     fb_id = request['session_id']
     text = response['text'].decode('UTF-8')
@@ -122,7 +122,7 @@ def send(request, response):
 
 
 def format_qr(quickreplies):
-    '''Format an array of quickreplies for the Facebook Graph API.'''
+    """Format an array of quickreplies for the Facebook Graph API."""
 
     return [{
         'title': qr,
@@ -132,7 +132,7 @@ def format_qr(quickreplies):
 
 
 def template(titles, urls):
-    ''''Format URLs into generic templates for the Facebook Graph API.'''
+    """Format URLs into generic templates for the Facebook Graph API."""
 
     if not isinstance(titles, list):
         titles = [titles]
@@ -159,7 +159,7 @@ def template(titles, urls):
 
 
 def format_text(key=None, value=None, options=None, list_=None):
-    '''Provide formatting for different response types.'''
+    """Provide formatting for different response types."""
 
     if key and value:
         return '{}: {}'.format(key, value)
@@ -170,7 +170,7 @@ def format_text(key=None, value=None, options=None, list_=None):
 
 
 def first_entity_value(entities, entity):
-    '''Extract the most probable entity from all entities given by Wit.'''
+    """Extract the most probable entity from all entities given by Wit."""
 
     if entity not in entities:
         return None
@@ -181,7 +181,7 @@ def first_entity_value(entities, entity):
 
 
 def callback(obj):
-    '''Handle celery response.'''
+    """Handle celery response."""
 
     try:
         return obj.get()
@@ -190,7 +190,7 @@ def callback(obj):
 
 
 def search_glossary(request):
-    '''Wit function for returning glossary response.'''
+    """Wit function for returning glossary response."""
 
     context = request['context']
     entities = request['entities']
@@ -201,7 +201,7 @@ def search_glossary(request):
         if res:
             context['definition'] = format_text(key=res[0], value=res[1])
         elif options:
-            context['options'] = format_options(options)
+            context['options'] = format_text(options=options)
             context['quickreplies'] = options + ['Cancel']
         else:
             context['missing_def'] = True
@@ -212,7 +212,7 @@ def search_glossary(request):
 
 
 def search_classes(request):
-    '''Wit function for returning use class response.'''
+    """Wit function for returning use class response."""
 
     context = request['context']
     entities = request['entities']
@@ -223,7 +223,7 @@ def search_classes(request):
         res = callback(use_classes.delay(phrase)[0])
         if res:
             if isinstance(res, list):
-                context['info'] = format_text(_list=res)
+                context['info'] = format_text(list_=res)
             else:
                 context['info'] = format_text(key=res[0], value=res[1])
         else:
@@ -235,7 +235,7 @@ def search_classes(request):
 
 
 def search_projects(request):
-    '''Wit function for returning permitted development response.'''
+    """Wit function for returning permitted development response."""
 
     context = request['context']
     entities = request['entities']
@@ -257,7 +257,7 @@ def search_projects(request):
 
 
 def search_docs(request):
-    '''Wit function for returning policy/legislation response.'''
+    """Wit function for returning policy/legislation response."""
 
     context = request['context']
     entities = request['entities']
@@ -279,7 +279,7 @@ def search_docs(request):
 
 
 def search_plans(request):
-    '''Wit function for returning local plan response.'''
+    """Wit function for returning local plan response."""
 
     context = request['context']
     entities = request['entities']
@@ -301,7 +301,7 @@ def search_plans(request):
 
 
 def list_locations(request):
-    '''Wit function for returning report location quickreplies.'''
+    """Wit function for returning report location quickreplies."""
 
     context = request['context']
     reports = ConnectDB('reports')
@@ -313,7 +313,7 @@ def list_locations(request):
 
 
 def list_sectors(request):
-    '''Wit function for returning dynamic report sector quickreplies.'''
+    """Wit function for returning dynamic report sector quickreplies."""
 
     user = request['session_id']
     context = request['context']
@@ -332,7 +332,7 @@ def list_sectors(request):
 
 
 def search_reports(request):
-    '''Wit function for returning report response (limited to 10 templates).'''
+    """Wit function for returning report response (limited to 10 templates)."""
 
     user = request['session_id']
     context = request['context']
@@ -355,7 +355,7 @@ def search_reports(request):
 
 
 def provide_contact_links(request):
-    '''Produce an array of contact links for CONTACT_PAYLOAD story'''
+    """Produce an array of contact links for CONTACT_PAYLOAD story"""
 
     context = request['context']
     context['title'] = ['My website', 'My Facebook page']
@@ -364,7 +364,7 @@ def provide_contact_links(request):
 
 
 def goodbye(request):
-    '''Let send function know that context should always be flushed.'''
+    """Let send function know that context should always be flushed."""
 
     context = request['context']
     context['exit'] = True

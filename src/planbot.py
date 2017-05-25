@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-'''
+"""
 planbot is a Celery worker program which enables multiple programs to use the
 semantic analysis provided by spaCy without the need for a full module import.
 
@@ -10,7 +10,7 @@ loaded on a traditional module import.
 
 Each celery task takes a phrase (and in the case of get_links a table string)
 and returns a result and options field.
-'''
+"""
 
 from operator import itemgetter
 import logging
@@ -36,7 +36,7 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 
 
 def sem_analysis(phrase, keys):
-    '''Return top 3 semantic matches over 0.5 threshold using spaCy NLP.'''
+    """Return top 3 semantic matches over 0.5 threshold using spaCy NLP."""
 
     def ratio_gen():
         for key in keys:
@@ -49,7 +49,7 @@ def sem_analysis(phrase, keys):
 
 
 def spell_check(phrase, keys):
-    '''Return match with least distance if above 0.7 threshold.'''
+    """Return match with least distance if above 0.7 threshold."""
 
     def ratio_gen():
         for key in keys:
@@ -61,7 +61,8 @@ def spell_check(phrase, keys):
 
 
 def titlecase(phrase):
-    '''Turn lowercase keys into titles.'''
+    """Turn lowercase keys into titles. Won't pick up on non-parenthesised 
+       acronyms"""
 
     if phrase == 'uk':
         return phrase.upper()
@@ -86,19 +87,19 @@ def titlecase(phrase):
 
 
 def ready(phrase):
-    '''Remove elipses if necessary and convert to lowercase.'''
+    """Remove ellipses if necessary and convert to lowercase."""
 
     return phrase.replace('...', '').lower()
 
 
 def process(result):
-    '''Return tuple of titlecase key and value.'''
+    """Return tuple of titlecase key and value."""
 
     return titlecase(result[0]), result[1]
 
 
 def run_options(db_object, query):
-    '''Run through various stages of processing to find relevant matches.'''
+    """Run through various stages of processing to find relevant matches."""
 
     result = None
     options = [k[0] for k in db_object.query_spec(query, spec='LIKE')]
@@ -117,7 +118,7 @@ def run_options(db_object, query):
 
 @app.task
 def definitions(phrase):
-    '''Celery task to handle definition request.'''
+    """Celery task to handle definition request."""
 
     glossary = ConnectDB('glossary')
     definition = options = None
@@ -137,7 +138,7 @@ def definitions(phrase):
 
 @app.task
 def use_classes(phrase):
-    '''Celery task to handle use class request.'''
+    """Celery task to handle use class request."""
 
     phrase = phrase.lower()
     classes = ConnectDB('use_classes')
@@ -158,11 +159,11 @@ def use_classes(phrase):
 
 @app.task
 def get_link(phrase, table):
-    '''Celery task to handle project/doc request.'''
+    """Celery task to handle project/doc request."""
 
     phrase = ready(phrase)
     db = ConnectDB(table)
-    link = options = None
+    link = None
 
     options = db.query_spec(phrase, spec='LIKE')
     if len(options) == 1:
@@ -176,7 +177,7 @@ def get_link(phrase, table):
 
 
 def find_lpa(postcode):
-    '''Use postcodes.io API to convert postcode to LPA.'''
+    """Use postcodes.io API to convert postcode to LPA."""
 
     res = requests.get('https://api.postcodes.io/postcodes/' + postcode)
     data = res.json()
@@ -189,10 +190,9 @@ def find_lpa(postcode):
 
 @app.task
 def local_plan(phrase):
-    '''Celery task to handle local plan request.'''
+    """Celery task to handle local plan request."""
 
     plans = ConnectDB('local_plans')
-    link = options = None
 
     # regex match postcodes
     if re.compile(r'[A-Z]+\d+[A-Z]?\s?\d[A-Z]+', re.I).search(phrase):
@@ -205,6 +205,7 @@ def local_plan(phrase):
     res = plans.query_spec(phrase, spec='EQL')
     if res:
         link = process(res)
+        options = None
     else:
         for word in ['borough', 'council', 'district', 'london']:
             council = council.replace(word, '')
@@ -216,10 +217,10 @@ def local_plan(phrase):
 
 @app.task
 def market_reports(location, sector):
-    '''Celery task to handle report request.'''
+    """Celery task to handle report request."""
 
     location, sector = location.lower(), sector.lower()
-    titles = links = None
+    result = None
 
     reports = ConnectDB('reports')
 
