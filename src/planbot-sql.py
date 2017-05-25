@@ -20,6 +20,7 @@ import spacy
 import Levenshtein
 import requests
 import psycopg2
+from psycopg2.sql import SQL, Identifier
 from celery import Celery
 
 # setup celery
@@ -42,7 +43,7 @@ class ConnectDB():
               'local_plans', 'market_reports']
 
     def __init__(self, table):
-        self.conn = psycopg2.connect('dbname=planbot')
+        self.connection = psycopg2.connect('dbname=planbot')
         self.cursor = self.conn.cursor()
         if table not in self.tables:
             raise Exception('Invalid table: {}'.format(table))
@@ -52,7 +53,7 @@ class ConnectDB():
     def query_keys(self):
         '''Return all keys from a table.'''
 
-        query = "SELECT key FROM {}".format(self.table)
+        query = SQL("SELECT key FROM {}".format(Identifier(self.table)))
         res = self.cursor.execute(query)
         return [k[0] for k in res.fetchall()]
 
@@ -61,33 +62,34 @@ class ConnectDB():
            'LIKE' for respective lookup types. EQL returns a sole key-value
            whereas LIKE returns multiple keys where the query is found.'''
 
-        assert ';' not in phrase
         assert spec in ['EQL', 'LIKE']
         if spec == 'EQL':
-            query = '''SELECT * FROM {}
-                       WHERE key = '{}' '''.format(self.table, phrase)
+            query = SQL("SELECT * FROM {} WHERE key=%s".format(
+                Identifier(self.table)), phrase)
 
         elif spec == 'LIKE':
-            query = '''SELECT key FROM {}
-                       WHERE key LIKE '%{}%' '''.format(self.table, phrase)
+            phrase = '%{}%'.format(phrase)
+            query = SQL("SELECT key FROM {} WHERE key LIKE %s".format(
+                Identifier(self.table)), phrase)
 
         res = self.cursor.execute(query)
         return res.fetchone() if spec == 'EQL' \
             else res.fetchall() if spec == 'LIKE' \
             else None
 
-    def query_reports(self, loc=None, sec=None):
-        '''Returns report table query sorted by date.'''
+    def query_reports(self, loc, sec):
+        '''Returns report table query given a location and sector,
+           sorted by date.'''
 
-        assert ';' not in phrase
+        assert self.table == 'reports'
         return self.cursor.execute('''SELECT title, url FROM reports
-                                      WHERE location=? AND sector=?
+                                      WHERE location=%s AND sector=%s
                                       ORDER BY date DESC''', (loc, sec))
 
     def close(self):
         '''Close connection to database.'''
 
-        self.conn.close()
+        self.connection.close()
 
 
 def sem_analysis(phrase, keys):
@@ -141,14 +143,20 @@ def titlecase(phrase):
 
 
 def ready(phrase):
+    '''Remove elipses if necessary and convert to lowercase.'''
+
     return phrase.replace('...', '').lower()
 
 
 def process(result):
+    '''Return tuple of titlecase key and value.'''
+
     return (titlecase(res[0]), res[1] for res in result)
 
 
 def run_options(db_object, query):
+    '''Run through various stages of processing to find relevant matches.'''
+
     options = [k[0] for k in db_object.query_spec(query, spec='LIKE')]
     if len(options) == 1:
         result = process(db_object.query_spec(options[0], spec='EQL'))
