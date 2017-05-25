@@ -119,6 +119,8 @@ def definitions(phrase):
             options = None
         elif not options:
             options = [titlecase(k) for k in sem_analysis(phrase, glossary)]
+        else:
+            options = [titlecase(k) for k in options]
     finally:
         return definition, options
 

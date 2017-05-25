@@ -3,25 +3,23 @@
 planbot is a Celery worker program which enables multiple programs to use the
 semantic analysis provided by spaCy without the need for a full module import.
 
-Messages are sent via the rabbitmq broker. API calls have access to additional
+Messages are sent via the redis broker. API calls have access to additional
 delay, ready and get methods for handling asynchronous calls. If these methods
-are not used spaCy will fail to find semantic matches as its models will not
-be loaded on a traditional module import.
+are not used spaCy will fail to find semantic matches as its models are not
+loaded on a traditional module import.
 
-All Celery tasks except use_classes and market_reports return a tuple
-consisting of a request's result and possible options. The use_classes and
-market_report functions return only the result.
+Each celery task takes a phrase (and in the case of get_links a table string)
+and returns a result and options field.
 '''
 
-from collections import OrderedDict
 from operator import itemgetter
 import logging
-import sqlite3
 import json
 import re
-import requests
 import spacy
 import Levenshtein
+import requests
+import psycopg2
 from celery import Celery
 
 # setup celery
@@ -37,39 +35,58 @@ logging.basicConfig(level=logging.INFO)
 logging.getLogger("requests").setLevel(logging.WARNING)
 
 
-class DB_Query():
-
-    # initialise table to query - sanitised against tables list
+class ConnectDB():
+    '''Connect to the planbot database and access a table.'''
 
     tables = ['glossary', 'use_classes', 'projects', 'documents',
               'local_plans', 'market_reports']
 
     def __init__(self, table):
-        self.conn = sqlite3.connect('data/data/db')
-        self.cursor = .cursor()
+        self.conn = psycopg2.connect('dbname=planbot')
+        self.cursor = self.conn.cursor()
         if table not in self.tables:
-            raise InvalidTableError('Not a valid table: {}'.format(table))
+            raise Exception('Invalid table: {}'.format(table))
         else:
             self.table = table
 
-    def query_all(self, field):
-        query = "SELECT {} FROM {}".format(', '.join(field), self.table)
+    def query_keys(self):
+        '''Return all keys from a table.'''
+
+        query = "SELECT key FROM {}".format(self.table)
         res = self.cursor.execute(query)
         return [k[0] for k in res.fetchall()]
 
-    def query_spec(self, spec, phrase):
+    def query_spec(self, phrase, spec=None):
+        '''Submit a database lookup. The spec kwarg takes one of 'EQL' or
+           'LIKE' for respective lookup types. EQL returns a sole key-value
+           whereas LIKE returns multiple keys where the query is found.'''
+
+        assert ';' not in phrase
+        assert spec in ['EQL', 'LIKE']
         if spec == 'EQL':
             query = '''SELECT * FROM {}
-                       WHERE term = '{}' '''.format(self.table, phrase)
+                       WHERE key = '{}' '''.format(self.table, phrase)
 
         elif spec == 'LIKE':
-            query = '''SELECT term FROM {}
-                       WHERE term LIKE '%{}%' '''.format(self.table, phrase)
+            query = '''SELECT key FROM {}
+                       WHERE key LIKE '%{}%' '''.format(self.table, phrase)
 
         res = self.cursor.execute(query)
-        return (res.fetchall(), res.fetchone())[spec == 'EQL']
+        return res.fetchone() if spec == 'EQL' \
+            else res.fetchall() if spec == 'LIKE' \
+            else None
 
-    def close():
+    def query_reports(self, loc=None, sec=None):
+        '''Returns report table query sorted by date.'''
+
+        assert ';' not in phrase
+        return self.cursor.execute('''SELECT title, url FROM reports
+                                      WHERE location=? AND sector=?
+                                      ORDER BY date DESC''', (loc, sec))
+
+    def close(self):
+        '''Close connection to database.'''
+
         self.conn.close()
 
 
@@ -99,7 +116,7 @@ def spell_check(phrase, keys):
 
 
 def titlecase(phrase):
-    '''Turn lowercase JSON keys into titles.'''
+    '''Turn lowercase keys into titles.'''
 
     if phrase == 'uk':
         return phrase.upper()
@@ -127,34 +144,41 @@ def ready(phrase):
     return phrase.replace('...', '').lower()
 
 
+def process(result):
+    return (titlecase(res[0]), res[1] for res in result)
+
+
+def run_options(db_object, query):
+    options = [k[0] for k in db_object.query_spec(query, spec='LIKE')]
+    if len(options) == 1:
+        result = process(db_object.query_spec(options[0], spec='EQL'))
+        options = None
+    elif not options:
+        all_data = db_object.query_keys()
+        options = [titlecase(k) for k in sem_analysis(query, all_data)]
+    else:
+        options = [titlecase(k) for k in options]
+
+    return result, options
+
+
 @app.task
 def definitions(phrase):
     '''Celery task to handle definition request.'''
 
-    glossary = DB_Query('glossary')
+    glossary = ConnectDB('glossary')
     definition = options = None
 
     # catch accidental triggers and process phrase
-    if len(phrase) < 3:
-        return None
-    else:
-        phrase = ready(phrase)
+    phrase = ready(phrase)
 
-    def get(query):
-        return glossary.query_spec('EQL', query)
-
-    res = get(phrase)
+    res = glossary.query_spec(phrase, spec='EQL')
     if res:
-        definition = (titlecase(string) for string in res)
+        definition = process(res)
     else:
-        options = [val[0] for val in glossary.query_spec('LIKE', phrase)]
-        if len(options) == 1:
-            definition = (titlecase(val) for val in get(options[0]))
-            options = None
-        elif not options:
-            all_data = glossary.query_all('term')
-            options = [titlecase(k) for k in sem_analysis(phrase, all_data)]
+        definition, options = run_options(glossary, phrase)
 
+    glossary.close()
     return definition, options
 
 
@@ -163,39 +187,37 @@ def use_classes(phrase):
     '''Celery task to handle use class request.'''
 
     phrase = phrase.lower()
-    classes = open_sesame('use_classes.json')
-    use = None
+    classes = ConnectDB('use_classes')
+    use = options = None
 
-    try:
-        match = [use for use in classes if phrase in use][0]
-        use = (titlecase(match), classes[match])
-    except Exception as err:
-        logging.info('use_classes exception: {}'.format(err))
-        if 'list' in phrase:
-            use = [titlecase(k) for k in classes]
-        else:
-            match = spell_check(phrase, classes)
-            if match:
-                use = (titlecase(match[0]), classes[match[0]])
-    finally:
-        return use
+    if 'list' in phrase:
+        return classes.query_keys()
+
+    res = classes.query_spec(phrase, spec='LIKE')
+    if len(res) == 1:
+        use = process(classes.query_spec(res[0], spec='EQL'))
+    elif not res:
+        use, options = run_options(classes, phrase)
+
+    glossary.close()
+    return use, options
 
 
 @app.task
-def get_link(phrase, filename):
+def get_link(phrase, table):
     '''Celery task to handle project/doc request.'''
 
-    phrase = phrase.replace('...', '').lower()
-    pydict = open_sesame(filename)
-    link = (None, None)
+    phrase = ready(phrase)
+    db = ConnectDB(table)
+    link = options = None
 
-    options = [key for key in pydict if phrase in key]
+    options = [k[0] for k in like(db, phrase)]
     if len(options) == 1:
-        link = (titlecase(options[0]), pydict[options[0]])
-        options = None
+        link = process(db.query_spec(options[0], spec='EQL'))
     elif not options:
-        options = [titlecase(k) for k in sem_analysis(phrase, pydict)]
+        run_options(db, phrase)
 
+    glossary.close()
     return link, options
 
 
@@ -207,74 +229,53 @@ def find_lpa(postcode):
 
     try:
         return data['result']['admin_district'].lower()
-    except KeyError:
-        return None
+    except Exception as err:
+        logging.info('Unable to parse postcodes request: {}'.format(err))
 
 
 @app.task
 def local_plan(phrase):
     '''Celery task to handle local plan request.'''
 
-    plans = open_sesame('local_plans.json')
-    title = link = None
+    plans = ConnectDB('local_plans')
+    link = options = None
 
     # regex match postcodes
     if re.compile(r'[A-Z]+\d+[A-Z]?\s?\d[A-Z]+', re.I).search(phrase):
         council = find_lpa(phrase)
         if not council:
-            return (title, link), None
+            raise Exception('No council found for {}'.format(phrase))
     else:
         council = phrase.lower()
 
-    def format_title(title):
-        return '{} Local Plan'.format(titlecase(title))
-
-    try:
-        link = plans[council]
-    except Exception as err:
-        logging.info('local_plan exception: {}'.format(err))
-
-        # remove unnecessary words
+    res = plans.query_spec(plans, spec='EQL')
+    if res:
+        link = process(res)
+    else:
         for word in ['borough', 'council', 'district', 'london']:
             council = council.replace(word, '')
+        link, options = run_options(plans, council)
 
-        # use single option as council, run spell check if no matches
-        options = [key for key in plans if council in key]
-        if len(options) == 1:
-            title = format_title(titlecase(options[0]))
-            link = plans[options[0]]
-            options = None
-        elif not options:
-            council = spell_check(council, plans)
-            if council:
-                title = format_title(titlecase(council[0]))
-                link = plans[council[0]]
-        else:
-            options = [titlecase(key) for key in options]
-    else:
-        title = format_title(titlecase(council))
-        options = None
-    finally:
-        return (title, link), options
+    plans.close()
+    return link, options
 
 
 @app.task
-def market_reports(loc, sec):
+def market_reports(location, sector):
     '''Celery task to handle report request.'''
 
     loc, sec = loc.lower(), sec.lower()
+    titles = reports = None
 
-    with open('data/reports.json') as js:
-        docs = json.load(js, object_pairs_hook=OrderedDict)
+    reports = ConnectDB('reports')
 
-    try:
-        titles = list(docs[loc][sec])
-        links = list(docs[loc][sec].values())
-    except Exception as err:
-        logging.info('market_reports exception: {}'.format(err))
-        titles = reports = None
-    finally:
-        return titles, links
+    res = reports.query_reports(location, sector)
+    if res:
+        titles = [t for t in res[0]]
+        reports = [r for r in res[1]]
+
+    reports.close()
+    return (titles, reports), None
 
 
 __all__ = [
