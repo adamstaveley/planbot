@@ -56,7 +56,7 @@ class ConnectDB():
 
         assert self.table == 'reports'
         self.cursor.execute('''SELECT DISTINCT sector FROM reports
-                               WHERE location=%s''', [loc])
+                               WHERE location=%s''', [loc.lower()])
 
         res = self.cursor.fetchall()
         return [r[0] for r in res]

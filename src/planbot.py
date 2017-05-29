@@ -23,7 +23,7 @@ from celery import Celery
 from connectdb import ConnectDB
 
 # setup celery
-app = Celery('planbotsql',
+app = Celery('planbot',
              broker='redis://',
              backend='redis://')
 
@@ -61,7 +61,7 @@ def spell_check(phrase, keys):
 
 
 def titlecase(phrase):
-    """Turn lowercase keys into titles. Won't pick up on non-parenthesised 
+    """Turn lowercase keys into titles. Won't pick up on non-parenthesised
        acronyms"""
 
     if phrase == 'uk':
@@ -145,7 +145,8 @@ def use_classes(phrase):
     use = options = None
 
     if 'list' in phrase:
-        return sorted([titlecase(k) for k in classes.query_keys()])
+        use = sorted([titlecase(k) for k in classes.query_keys()])
+        return use, options
 
     res = classes.query_spec(phrase, spec='LIKE')
     if len(res) == 1:

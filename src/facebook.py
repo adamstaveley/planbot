@@ -6,13 +6,12 @@ Wit and Facebook Graph APIs.
 
 import os
 import logging
-import json
-from collections import OrderedDict
 import requests
 import redis
 from wit import Wit
 from bottle import Bottle, request, debug
 from planbot import *
+from connectdb import ConnectDB
 
 # set environmental variables
 WIT_TOKEN = os.environ.get('WIT_TOKEN')
@@ -139,6 +138,11 @@ def template(titles, urls):
     if not isinstance(urls, list):
         urls = urls.split()
 
+    button_titles = ['Download' if url.endswith('pdf') else 'View'
+                     for url in urls]
+
+    assert len(titles) == len(urls)
+
     elements = [{
         'title': titles[i],
         'default_action': {
@@ -147,7 +151,7 @@ def template(titles, urls):
         'buttons': [{
             'type': 'web_url',
             'url': urls[i],
-            'title': 'View'}]}
+            'title': button_titles[i]}]}
              for i in range(len(titles))]
 
     return {
@@ -158,15 +162,15 @@ def template(titles, urls):
                 "elements": elements}}}
 
 
-def format_text(key=None, value=None, options=None, list_=None):
+def format_text(key=None, value=None, options=None, array=None):
     """Provide formatting for different response types."""
 
     if key and value:
         return '{}: {}'.format(key, value)
     elif options:
         return '\n\u2022 {}'.format('\n\u2022 '.join(options))
-    elif list_:
-        return '\n'.join(sorted(list_))
+    elif array:
+        return '\n'.join(sorted(array))
 
 
 def first_entity_value(entities, entity):
@@ -220,10 +224,10 @@ def search_classes(request):
     phrase = first_entity_value(entities, 'term')
     if phrase:
         # can add options if necessary
-        res = callback(use_classes.delay(phrase)[0])
+        res, _ = callback(use_classes.delay(phrase))
         if res:
             if isinstance(res, list):
-                context['info'] = format_text(list_=res)
+                context['info'] = format_text(array=res)
             else:
                 context['info'] = format_text(key=res[0], value=res[1])
         else:
@@ -243,7 +247,7 @@ def search_projects(request):
     phrase = first_entity_value(entities, 'term')
     if phrase:
         res, options = callback(get_link.delay(phrase, 'projects'))
-        if res[1]:
+        if res:
             context['title'], context['link'] = res
         elif options:
             context['options'] = format_text(options=options)
@@ -265,7 +269,7 @@ def search_docs(request):
     phrase = first_entity_value(entities, 'term')
     if phrase:
         res, options = callback(get_link.delay(phrase, 'documents'))
-        if res[1]:
+        if res:
             context['title'], context['link'] = res
         elif options:
             context['options'] = format_text(options=options)
@@ -287,7 +291,7 @@ def search_plans(request):
     location = first_entity_value(entities, 'term')
     if location:
         res, options = callback(local_plan.delay(location))
-        if res[1]:
+        if res:
             context['title'], context['local_plan'] = res
         elif options:
             context['options'] = format_text(options=options)
@@ -342,10 +346,10 @@ def search_reports(request):
     location = store.get(user)
     sector = first_entity_value(entities, 'term')
     if sector:
-        res = callback(market_reports.delay(location, sector))
+        res, _ = callback(market_reports.delay(location, sector))
         if res:
             context['title'] = res[0][:10]
-            context['reports'] = ', '.join(res[1][:10])
+            context['reports'] = ' '.join(res[1][:10])
         else:
             context['missing_report'] = True
     else:

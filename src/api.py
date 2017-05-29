@@ -9,7 +9,7 @@ import json
 import logging
 from bottle import Bottle, request, response, get
 from planbot import *
-from conndb import ConnectDB
+from connectdb import ConnectDB
 
 logging.basicConfig(level=logging.INFO)
 app = application = Bottle()
@@ -94,7 +94,9 @@ def answer_query(params):
             resp['reason'] = 'no result found for \'{}\''.format(param)
         else:
             resp['success'] = True
-            resp['result'] = (result, options)
+            resp['result'] = {
+                'value': result
+                'options': options}
     finally:
         return resp
 

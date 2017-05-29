@@ -19,6 +19,37 @@ Sources used:
 
 ---
 
+## Usage
+
+Planbot is currently available on [Facebook Messenger](https://m.me/planbotco), though
+further platform integration is planned. Planbot works within the constraints of 
+Messenger's bot platform guidelines, that is, a conversation based around menus. This
+works well in minimising frustration common with chatbots, as the bot's capabilities 
+are clearly communicated to the user.
+
+Planbot also has a public-facing API for handling direct requests to its database,
+which listens at the <https://api.planbot.co/> subdomain. 
+
+Available actions:
+
+| Action    | Function                          | Usage                      |
+|-----------|-----------------------------------|----------------------------|
+| `define`  | Return a definition               | `/define/term`             |
+| `use`     | Use classes information           | `/use/class`               |
+| `project` | Permitted development information | `/project/topic`           |
+| `doc`     | Request policy or legislation     | `/doc/name`                |
+| `lp`      | Request a local plan              | `/lp/area-or-postcode`     |
+| `reports` | Request market research           | `/reports/location/sector` |
+
+Notes:
+* Whitespace characters should be replaced with `-`, `_` or `%20`.
+* If no parameter is given, an action on its own will return all available keys. In
+    the case of `reports`, all reports will be returned.
+
+---
+
+## About
+
 The chatbot uses the [Wit.ai](https://github.com/wit-ai/pywit) Python module to handle
 responses. Wit.ai provides a method of Natural Language Processing (NLP) which aids in
 selecting the right response to users' queries. As Wit.ai is in continual development,
@@ -28,7 +59,7 @@ Another layer of NLP is provided by the spaCy module for Python3. This enables
 semantic analysis of user responses when they request information such as definitions
 or planning documents. As spaCy is computationally expensive it is recommended that the 
 planbot module be run as a background process using a message broker, else there is a 
-'simple' version which can be used in testing environments. This module uses the 
+'simple' version which can be used in testing environments. This version uses the 
 Levenshtein distance algorithm to analyse string similarity, as such it cannot capture 
 meaning from user responses.
 
