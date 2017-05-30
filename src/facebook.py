@@ -6,10 +6,12 @@ Wit and Facebook Graph APIs.
 
 import os
 import logging
+
 import requests
 import redis
 from wit import Wit
 from bottle import Bottle, request, debug
+
 from planbot import *
 from connectdb import ConnectDB
 
@@ -227,9 +229,9 @@ def search_classes(request):
         res, _ = callback(use_classes.delay(phrase))
         if res:
             if isinstance(res, list):
-                context['info'] = format_text(array=res)
+                context['use'] = format_text(array=res)
             else:
-                context['info'] = format_text(key=res[0], value=res[1])
+                context['use'] = format_text(key=res[0], value=res[1])
         else:
             context['missing_use'] = True
     else:
@@ -248,12 +250,12 @@ def search_projects(request):
     if phrase:
         res, options = callback(get_link.delay(phrase, 'projects'))
         if res:
-            context['title'], context['link'] = res
+            context['title'], context['project'] = res
         elif options:
-            context['options'] = format_text(options=options)
+            context['pd_options'] = format_text(options=options)
             context['quickreplies'] = options + ['Cancel']
         else:
-            context['missing_link'] = True
+            context['missing_pd'] = True
     else:
         context['missing_link'] = True
 
@@ -270,12 +272,12 @@ def search_docs(request):
     if phrase:
         res, options = callback(get_link.delay(phrase, 'documents'))
         if res:
-            context['title'], context['link'] = res
+            context['title'], context['doc'] = res
         elif options:
-            context['options'] = format_text(options=options)
+            context['doc_options'] = format_text(options=options)
             context['quickreplies'] = options + ['Cancel']
         else:
-            context['missing_link'] = True
+            context['missing_doc'] = True
     else:
         context['missing_link'] = True
 
@@ -294,10 +296,10 @@ def search_plans(request):
         if res:
             context['title'], context['local_plan'] = res
         elif options:
-            context['options'] = format_text(options=options)
+            context['lp_options'] = format_text(options=options)
             context['quickreplies'] = options + ['Cancel']
         else:
-            context['missing_loc'] = True
+            context['missing_lp'] = True
     else:
         context['missing_loc'] = True
 

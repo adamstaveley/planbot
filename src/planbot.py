@@ -14,12 +14,13 @@ and returns a result and options field.
 
 from operator import itemgetter
 import logging
-import json
 import re
+
 import spacy
 import Levenshtein
 import requests
 from celery import Celery
+
 from connectdb import ConnectDB
 
 # setup celery

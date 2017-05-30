@@ -7,7 +7,9 @@ value is simply the response from the relevant planbot api call.
 
 import json
 import logging
+
 from bottle import Bottle, request, response, get
+
 from planbot import *
 from connectdb import ConnectDB
 
