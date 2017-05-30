@@ -6,7 +6,7 @@ class ConnectDB():
     """Connect to the planbot database and access a table."""
 
     tables = ['glossary', 'use_classes', 'projects', 'documents',
-              'local_plans', 'reports', 'responses']
+              'local_plans', 'reports']
 
     def __init__(self, table):
         self.conn = psycopg2.connect('dbname=planbot')
@@ -15,16 +15,6 @@ class ConnectDB():
             raise Exception('Invalid table: {}'.format(table))
         else:
             self.table = table
-
-    def query_response(message):
-        """Return response given message."""
-        response = {}
-        self.cursor.execute('''SELECT message, quickreplies FROM responses
-                               WHERE context=%s''', message)
-
-        res = self.cursor.fetchall()
-        response['message'], response['quickreplies'] = res
-        return res
 
     def query_keys(self):
         """Return all keys from a table."""

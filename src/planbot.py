@@ -1,17 +1,3 @@
-#!/usr/bin/python3
-"""
-planbot is a Celery worker program which enables multiple programs to use the
-semantic analysis provided by spaCy without the need for a full module import.
-
-Messages are sent via the redis broker. API calls have access to additional
-delay, ready and get methods for handling asynchronous calls. If these methods
-are not used spaCy will fail to find semantic matches as its models are not
-loaded on a traditional module import.
-
-Each celery task takes a phrase (and in the case of get_links a table string)
-and returns a result and options field.
-"""
-
 from operator import itemgetter
 import logging
 import re
@@ -19,7 +5,7 @@ import re
 import spacy
 import Levenshtein
 import requests
-from celery import Celery
+from celery import Celery, Task
 
 from connectdb import ConnectDB
 
@@ -36,35 +22,7 @@ logging.basicConfig(level=logging.INFO)
 logging.getLogger("requests").setLevel(logging.WARNING)
 
 
-def sem_analysis(phrase, keys):
-    """Return top 3 semantic matches over 0.5 threshold using spaCy NLP."""
-
-    def ratio_gen():
-        for key in keys:
-            yield key, nlp(phrase).similarity(nlp(key))
-
-    entities = {key: ratio for key, ratio in ratio_gen() if ratio > 0.5}
-    entities = sorted(entities, key=entities.get, reverse=True)[:3]
-
-    return spell_check(phrase, keys) if not entities else entities
-
-
-def spell_check(phrase, keys):
-    """Return match with least distance if above 0.7 threshold."""
-
-    def ratio_gen():
-        for key in keys:
-            yield key, Levenshtein.ratio(phrase, key)
-
-    entity = max(ratio_gen(), key=itemgetter(1))
-
-    return [entity[0]] if entity[1] > 0.75 else []
-
-
 def titlecase(phrase):
-    """Turn lowercase keys into titles. Won't pick up on non-parenthesised
-       acronyms"""
-
     if phrase == 'uk':
         return phrase.upper()
 
@@ -87,166 +45,107 @@ def titlecase(phrase):
     return phrase
 
 
-def ready(phrase):
-    """Remove ellipses if necessary and convert to lowercase."""
+class Planbot(Task):
 
-    return phrase.replace('...', '').lower()
+    switch = {
+        'definitions': self.get_direct,
+        'use_classes': self.get_use_class,
+        'projects': self.get_options,
+        'documents': self.get_options,
+        'local_plans': self.get_local_plan,
+        'reports': self.get_reports}
 
+    def __init__(self, action, query, sector=None):
+        self.action, self.query = action, self.ready(query)
+        self.sector = self.ready(sector) if sector else sector
+        self.result = self.options = None
+        self.db = ConnectDB(action)
+        self.switch[action]()
+        self.db.close()
 
-def process(result):
-    """Return tuple of titlecase key and value."""
+    def get_direct():
+        res = self.db.query_spec(self.query, spec='EQL')
+        if res:
+            self.result = self.process(res)
+        else:
+            if self.action == 'local_plans':
+                for word in ['borough', 'council', 'district', 'london']:
+                    self.query = self.query.replace(word, '')
+            self.run_options()
+        return None
 
-    return titlecase(result[0]), result[1]
+    def get_options():
+        res = [k[0] for k in self.db.query_spec(self.query, spec='LIKE')]
+        if len(res) == 1:
+            res = self.db.query_spec(options[0], spec='EQL')
+            self.result = self.process(res)
+        elif not res:
+            keys = db_object.query_keys()
+            res = self.semantic_analysis(keys)
+            self.options = [titlecase(k) for k in res]
+        else:
+            self.options = [titlecase(k) for k in res]
+        return None
 
+    def get_use_class():
+        if 'list' in phrase:
+            keys = self.db.query_keys()
+            self.result = sorted([titlecase(key) for key in keys])
+        else:
+            self.run_options()
+            return None
 
-def run_options(db_object, query):
-    """Run through various stages of processing to find relevant matches."""
+    def get_local_plan():
+        def find_lpa(postcode):
+            api = 'https://api.postcodes.io/postcodes/'
+            res = requests.get(url + postcode).json()
+            if res.get('result'):
+                return data['result']['admin_district'].lower()
 
-    result = None
-    options = [k[0] for k in db_object.query_spec(query, spec='LIKE')]
+        if re.compile(r'[A-Z]+\d+[A-Z]?\s?\d[A-Z]+', re.I).search(self.query):
+            council = find_lpa(self.query)
+            if not council:
+                logging.info('No council found for {}'.format(phrase))
+            else:
+                self.query = council
 
-    if len(options) == 1:
-        result = process(db_object.query_spec(options[0], spec='EQL'))
-        options = None
-    elif not options:
-        all_data = db_object.query_keys()
-        options = [titlecase(k) for k in sem_analysis(query, all_data)]
-    else:
-        options = [titlecase(k) for k in options]
+        self.get_direct()
+        return None
 
-    return result, options
+    def get_reports():
+        res = reports.query_reports(loc=self.query, sec=self.sector)
+        if res:
+            titles = [r[0] for r in res]
+            links = [r[1] for r in res]
+            self.result = (titles, links)
+        return None
 
+    def sem_analysis(keys):
+        def ratio_gen():
+            for key in keys:
+                yield key, nlp(self.query).similarity(nlp(key))
 
-@app.task
-def definitions(phrase):
-    """Celery task to handle definition request."""
+        entities = {key: ratio for key, ratio in ratio_gen() if ratio > 0.5}
+        entities = sorted(entities, key=entities.get, reverse=True)[:3]
 
-    glossary = ConnectDB('glossary')
-    definition = options = None
+        return self.spell_check(keys) if not entities else entities
 
-    # catch accidental triggers and process phrase
-    phrase = ready(phrase)
+    def spell_check(keys):
+        def ratio_gen():
+            for key in keys:
+                yield key, Levenshtein.ratio(self.query, key)
 
-    res = glossary.query_spec(phrase, spec='EQL')
-    if res:
-        definition = process(res)
-    else:
-        definition, options = run_options(glossary, phrase)
+        entity = max(ratio_gen(), key=itemgetter(1))
 
-    glossary.close()
-    return definition, options
+        return [entity[0]] if entity[1] > 0.75 else []
 
+    def ready(phrase):
+        return phrase.replace('...', '').lower()
 
-@app.task
-def use_classes(phrase):
-    """Celery task to handle use class request."""
-
-    phrase = phrase.lower()
-    classes = ConnectDB('use_classes')
-    use = options = None
-
-    if 'list' in phrase:
-        use = sorted([titlecase(k) for k in classes.query_keys()])
-        return use, options
-
-    res = classes.query_spec(phrase, spec='LIKE')
-    if len(res) == 1:
-        use = process(classes.query_spec(res[0], spec='EQL'))
-    elif not res:
-        use, options = run_options(classes, phrase)
-
-    classes.close()
-    return use, options
-
-
-@app.task
-def get_link(phrase, table):
-    """Celery task to handle project/doc request."""
-
-    phrase = ready(phrase)
-    db = ConnectDB(table)
-    link = None
-
-    options = db.query_spec(phrase, spec='LIKE')
-    if len(options) == 1:
-        link = process(db.query_spec(options[0], spec='EQL'))
-        options = None
-    elif not options:
-        link, options = run_options(db, phrase)
-
-    db.close()
-    return link, options
-
-
-def find_lpa(postcode):
-    """Use postcodes.io API to convert postcode to LPA."""
-
-    res = requests.get('https://api.postcodes.io/postcodes/' + postcode)
-    data = res.json()
-
-    try:
-        return data['result']['admin_district'].lower()
-    except Exception as err:
-        logging.info('Unable to parse postcodes request: {}'.format(err))
-
-
-@app.task
-def local_plan(phrase):
-    """Celery task to handle local plan request."""
-
-    plans = ConnectDB('local_plans')
-
-    # regex match postcodes
-    if re.compile(r'[A-Z]+\d+[A-Z]?\s?\d[A-Z]+', re.I).search(phrase):
-        council = find_lpa(phrase)
-        if not council:
-            raise Exception('No council found for {}'.format(phrase))
-    else:
-        council = phrase.lower()
-
-    res = plans.query_spec(phrase, spec='EQL')
-    if res:
-        link = process(res)
-        options = None
-    else:
-        for word in ['borough', 'council', 'district', 'london']:
-            council = council.replace(word, '')
-        link, options = run_options(plans, council)
-
-    plans.close()
-    return link, options
-
-
-@app.task
-def market_reports(location, sector):
-    """Celery task to handle report request."""
-
-    location, sector = location.lower(), sector.lower()
-    result = None
-
-    reports = ConnectDB('reports')
-
-    res = reports.query_reports(loc=location, sec=sector)
-    if res:
-        titles = [r[0] for r in res]
-        links = [r[1] for r in res]
-        result = (titles, links)
-
-    reports.close()
-    return result, None
-
-
-__all__ = [
-    'ConnectDB',
-    'titlecase',
-    'definitions',
-    'use_classes',
-    'get_link',
-    'local_plan',
-    'market_reports']
+    def process(result):
+        return titlecase(result[0]), result[1]
 
 
 if __name__ == '__main__':
-    # instantiate spacy and celery
     nlp = spacy.load('en_vectors_glove_md')
-    app.start()
+    app.run()

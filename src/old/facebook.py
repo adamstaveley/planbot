@@ -1,18 +1,19 @@
 #!/usr/bin/python3
-'''
+"""
 Planbot's Facebook application. Handles requests and responses through the
 Wit and Facebook Graph APIs.
-'''
+"""
 
 import os
 import logging
-import json
-from collections import OrderedDict
+
 import requests
 import redis
 from wit import Wit
 from bottle import Bottle, request, debug
+
 from planbot import *
+from connectdb import ConnectDB
 
 # set environmental variables
 WIT_TOKEN = os.environ.get('WIT_TOKEN')
@@ -29,7 +30,7 @@ logging.basicConfig(level=logging.INFO)
 
 @app.get('/webhook')
 def messenger_webhook():
-    '''Validate GET request.'''
+    """Validate GET request."""
 
     verify_token = request.query.get('hub.verify_token')
     if verify_token == FB_VERIFY_TOKEN:
@@ -41,7 +42,7 @@ def messenger_webhook():
 
 @app.post('/webhook')
 def messenger_post():
-    '''Extract message from POST request and send to Wit.'''
+    """Extract message from POST request and send to Wit."""
 
     data = request.json
     if data['object'] == 'page':
@@ -68,7 +69,7 @@ def messenger_post():
 
 
 def sender_action(sender_id):
-    '''POST typing action before response.'''
+    """POST typing action before response."""
 
     data = {'recipient': {'id': sender_id}, 'sender_action': 'typing_on'}
     qs = 'access_token=' + FB_PAGE_TOKEN
@@ -79,7 +80,7 @@ def sender_action(sender_id):
 
 
 def fb_message(sender_id, text, q_replies, cards):
-    '''POST response to Facebook Graph API.'''
+    """POST response to Facebook Graph API."""
 
     data = {'recipient': {'id': sender_id}}
 
@@ -96,7 +97,7 @@ def fb_message(sender_id, text, q_replies, cards):
 
 
 def send(request, response):
-    '''Process response before sending to Facebook.'''
+    """Process response before sending to Facebook."""
 
     fb_id = request['session_id']
     text = response['text'].decode('UTF-8')
@@ -122,7 +123,7 @@ def send(request, response):
 
 
 def format_qr(quickreplies):
-    '''Format an array of quickreplies for the Facebook Graph API.'''
+    """Format an array of quickreplies for the Facebook Graph API."""
 
     return [{
         'title': qr,
@@ -132,12 +133,17 @@ def format_qr(quickreplies):
 
 
 def template(titles, urls):
-    ''''Format URLs into generic templates for the Facebook Graph API.'''
+    """Format URLs into generic templates for the Facebook Graph API."""
 
     if not isinstance(titles, list):
         titles = [titles]
     if not isinstance(urls, list):
         urls = urls.split()
+
+    button_titles = ['Download' if url.endswith('pdf') else 'View'
+                     for url in urls]
+
+    assert len(titles) == len(urls)
 
     elements = [{
         'title': titles[i],
@@ -147,7 +153,7 @@ def template(titles, urls):
         'buttons': [{
             'type': 'web_url',
             'url': urls[i],
-            'title': 'View'}]}
+            'title': button_titles[i]}]}
              for i in range(len(titles))]
 
     return {
@@ -158,19 +164,19 @@ def template(titles, urls):
                 "elements": elements}}}
 
 
-def format_text(key=None, value=None, options=None, list_=None):
-    '''Provide formatting for different response types.'''
+def format_text(key=None, value=None, options=None, array=None):
+    """Provide formatting for different response types."""
 
     if key and value:
         return '{}: {}'.format(key, value)
     elif options:
         return '\n\u2022 {}'.format('\n\u2022 '.join(options))
-    elif list_:
-        return '\n'.join(sorted(list_))
+    elif array:
+        return '\n'.join(sorted(array))
 
 
 def first_entity_value(entities, entity):
-    '''Extract the most probable entity from all entities given by Wit.'''
+    """Extract the most probable entity from all entities given by Wit."""
 
     if entity not in entities:
         return None
@@ -181,7 +187,7 @@ def first_entity_value(entities, entity):
 
 
 def callback(obj):
-    '''Handle celery response.'''
+    """Handle celery response."""
 
     try:
         return obj.get()
@@ -190,7 +196,7 @@ def callback(obj):
 
 
 def search_glossary(request):
-    '''Wit function for returning glossary response.'''
+    """Wit function for returning glossary response."""
 
     context = request['context']
     entities = request['entities']
@@ -201,7 +207,7 @@ def search_glossary(request):
         if res:
             context['definition'] = format_text(key=res[0], value=res[1])
         elif options:
-            context['options'] = format_options(options)
+            context['options'] = format_text(options=options)
             context['quickreplies'] = options + ['Cancel']
         else:
             context['missing_def'] = True
@@ -212,7 +218,7 @@ def search_glossary(request):
 
 
 def search_classes(request):
-    '''Wit function for returning use class response.'''
+    """Wit function for returning use class response."""
 
     context = request['context']
     entities = request['entities']
@@ -220,12 +226,12 @@ def search_classes(request):
     phrase = first_entity_value(entities, 'term')
     if phrase:
         # can add options if necessary
-        res = callback(use_classes.delay(phrase)[0])
+        res, _ = callback(use_classes.delay(phrase))
         if res:
             if isinstance(res, list):
-                context['info'] = format_text(_list=res)
+                context['use'] = format_text(array=res)
             else:
-                context['info'] = format_text(key=res[0], value=res[1])
+                context['use'] = format_text(key=res[0], value=res[1])
         else:
             context['missing_use'] = True
     else:
@@ -235,7 +241,7 @@ def search_classes(request):
 
 
 def search_projects(request):
-    '''Wit function for returning permitted development response.'''
+    """Wit function for returning permitted development response."""
 
     context = request['context']
     entities = request['entities']
@@ -243,13 +249,13 @@ def search_projects(request):
     phrase = first_entity_value(entities, 'term')
     if phrase:
         res, options = callback(get_link.delay(phrase, 'projects'))
-        if res[1]:
-            context['title'], context['link'] = res
+        if res:
+            context['title'], context['project'] = res
         elif options:
-            context['options'] = format_text(options=options)
+            context['pd_options'] = format_text(options=options)
             context['quickreplies'] = options + ['Cancel']
         else:
-            context['missing_link'] = True
+            context['missing_pd'] = True
     else:
         context['missing_link'] = True
 
@@ -257,7 +263,7 @@ def search_projects(request):
 
 
 def search_docs(request):
-    '''Wit function for returning policy/legislation response.'''
+    """Wit function for returning policy/legislation response."""
 
     context = request['context']
     entities = request['entities']
@@ -265,13 +271,13 @@ def search_docs(request):
     phrase = first_entity_value(entities, 'term')
     if phrase:
         res, options = callback(get_link.delay(phrase, 'documents'))
-        if res[1]:
-            context['title'], context['link'] = res
+        if res:
+            context['title'], context['doc'] = res
         elif options:
-            context['options'] = format_text(options=options)
+            context['doc_options'] = format_text(options=options)
             context['quickreplies'] = options + ['Cancel']
         else:
-            context['missing_link'] = True
+            context['missing_doc'] = True
     else:
         context['missing_link'] = True
 
@@ -279,7 +285,7 @@ def search_docs(request):
 
 
 def search_plans(request):
-    '''Wit function for returning local plan response.'''
+    """Wit function for returning local plan response."""
 
     context = request['context']
     entities = request['entities']
@@ -287,13 +293,13 @@ def search_plans(request):
     location = first_entity_value(entities, 'term')
     if location:
         res, options = callback(local_plan.delay(location))
-        if res[1]:
+        if res:
             context['title'], context['local_plan'] = res
         elif options:
-            context['options'] = format_text(options=options)
+            context['lp_options'] = format_text(options=options)
             context['quickreplies'] = options + ['Cancel']
         else:
-            context['missing_loc'] = True
+            context['missing_lp'] = True
     else:
         context['missing_loc'] = True
 
@@ -301,21 +307,19 @@ def search_plans(request):
 
 
 def list_locations(request):
-    '''Wit function for returning report location quickreplies.'''
+    """Wit function for returning report location quickreplies."""
 
     context = request['context']
-
-    with open('data/reports.json') as js:
-        reports = json.load(js, object_pairs_hook=OrderedDict)
-
-    locations = [titlecase(loc) for loc in reports]
+    reports = ConnectDB('reports')
+    locations = [titlecase(loc) for loc in reports.distinct_locations()]
     context['quickreplies'] = locations + ['Cancel']
 
+    reports.close()
     return context
 
 
 def list_sectors(request):
-    '''Wit function for returning dynamic report sector quickreplies.'''
+    """Wit function for returning dynamic report sector quickreplies."""
 
     user = request['session_id']
     context = request['context']
@@ -325,21 +329,16 @@ def list_sectors(request):
     store = redis.Redis(connection_pool=redis.ConnectionPool())
     store.set(user, location)
 
-    with open('data/reports.json') as js:
-        reports = json.load(js, object_pairs_hook=OrderedDict)
+    reports = ConnectDB('reports')
+    sectors = [titlecase(sec) for sec in reports.distinct_sectors(location)]
+    context['quickreplies'] = sectors + ['Change']
 
-    try:
-        sectors = [titlecase(sec) for sec in reports[location.lower()]]
-    except KeyError:
-        context['quickreplies'] = ['Change']
-    else:
-        context['quickreplies'] = sectors + ['Change']
-    finally:
-        return context
+    reports.close()
+    return context
 
 
 def search_reports(request):
-    '''Wit function for returning report response (limited to 10 templates).'''
+    """Wit function for returning report response (limited to 10 templates)."""
 
     user = request['session_id']
     context = request['context']
@@ -349,10 +348,10 @@ def search_reports(request):
     location = store.get(user)
     sector = first_entity_value(entities, 'term')
     if sector:
-        res = callback(market_reports.delay(location, sector))
+        res, _ = callback(market_reports.delay(location, sector))
         if res:
             context['title'] = res[0][:10]
-            context['reports'] = ', '.join(res[1][:10])
+            context['reports'] = ' '.join(res[1][:10])
         else:
             context['missing_report'] = True
     else:
@@ -362,7 +361,7 @@ def search_reports(request):
 
 
 def provide_contact_links(request):
-    '''Produce an array of contact links for CONTACT_PAYLOAD story'''
+    """Produce an array of contact links for CONTACT_PAYLOAD story"""
 
     context = request['context']
     context['title'] = ['My website', 'My Facebook page']
@@ -371,7 +370,7 @@ def provide_contact_links(request):
 
 
 def goodbye(request):
-    '''Let send function know that context should always be flushed.'''
+    """Let send function know that context should always be flushed."""
 
     context = request['context']
     context['exit'] = True

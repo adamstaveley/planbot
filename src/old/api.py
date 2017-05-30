@@ -10,7 +10,7 @@ import logging
 
 from bottle import Bottle, request, response, get
 
-from planbot import Planbot, titlecase
+from planbot import *
 from connectdb import ConnectDB
 
 logging.basicConfig(level=logging.INFO)
@@ -20,11 +20,13 @@ if __name__ == '__main__':
     app.run()
 
 
-def result(obj):
+def callback(obj):
+    """Handle celery response."""
+
     try:
         return obj.get()
     except Exception as err:
-        logging.info('Result error: {}'.format(err))
+        logging.info('Callback exception: {}'.format(err))
 
 
 @app.get('/<path:path>')
@@ -45,7 +47,7 @@ def process_params(path):
     elif len(params) == 3:
         resp = handle_report_query(location=params[1], sector=params[2])
     else:
-        resp = {'success': False, 'error': 'invalid number of parameters'}
+        resp = {'success': False, 'reason': 'invalid number of parameters'}
 
     return json.dumps(resp)
 
@@ -63,7 +65,7 @@ def return_all_data(action):
         res = db.query_keys()
     except KeyError:
         resp['success'] = False
-        resp['error'] = 'action \'{}\' not found'.format(action)
+        resp['reason'] = 'action \'{}\' not found'.format(action)
     else:
         resp['success'] = True
         resp['result'] = res
@@ -76,18 +78,22 @@ def answer_query(params):
     """Called if a specific parameter is given for an action."""
 
     action, param = params
-    action = switch[action]
+    alt_actions = ['project', 'doc']
     resp = dict()
 
     try:
-        result, options = callback(Planbot(action, param))
+        if action in alt_actions:
+            fun, db = switch[action]
+            result, options = callback(fun.delay(param, db))
+        else:
+            result, options = callback(switch[action][0].delay(param))
     except KeyError:
         resp['success'] = False
-        resp['error'] = 'action \'{}\' not found'.format(action)
+        resp['reason'] = 'action \'{}\' not found'.format(action)
     else:
         if not result and not options:
             resp['success'] = False
-            resp['error'] = 'no result found for \'{}\''.format(param)
+            resp['reason'] = 'no result found for \'{}\''.format(param)
         else:
             resp['success'] = True
             resp['result'] = {
@@ -110,16 +116,16 @@ def handle_report_query(location=None, sector=None):
         resp['result'] = res
     else:
         resp['success'] = False
-        resp['error'] = 'no results found for given location/sector'
+        resp['reason'] = 'no results found for given location/sector'
 
     db.close()
     return resp
 
 
 switch = {
-    'define': 'definitions',
-    'use': 'use_classes',
-    'project': 'projects',
-    'doc': 'documents',
-    'lp': 'local_plans',
-    'reports': 'reports'}
+    'define': [definitions, 'glossary'],
+    'use': [use_classes, 'use_classes'],
+    'project': [get_link, 'projects'],
+    'doc': [get_link, 'documents'],
+    'lp': [local_plan, 'local_plans'],
+    'reports': [market_reports, 'reports']}
