@@ -8,10 +8,10 @@ value is simply the response from the relevant planbot api call.
 import json
 import logging
 
-from bottle import Bottle, request, response, get
+from bottle import Bottle, response
 
-from planbot import Planbot, titlecase
-from connectdb import ConnectDB
+from components.planbot import Planbot
+from components.connectdb import ConnectDB
 
 logging.basicConfig(level=logging.INFO)
 app = application = Bottle()
@@ -20,7 +20,7 @@ if __name__ == '__main__':
     app.run()
 
 
-def result(obj):
+def get_result(obj):
     try:
         return obj.get()
     except Exception as err:
@@ -80,7 +80,8 @@ def answer_query(params):
     resp = dict()
 
     try:
-        result, options = callback(Planbot(action, param))
+        planbot = Planbot.delay(action, param)
+        result, options = (get_result(planbot.result()))
     except KeyError:
         resp['success'] = False
         resp['error'] = 'action \'{}\' not found'.format(action)
@@ -91,7 +92,7 @@ def answer_query(params):
         else:
             resp['success'] = True
             resp['result'] = {
-                'value': result
+                'value': result,
                 'options': options}
     finally:
         return resp
@@ -101,7 +102,6 @@ def handle_report_query(location=None, sector=None):
     """Called by report action. Sector argument is optional."""
 
     resp = dict()
-    res = None
     db = ConnectDB('reports')
 
     res = db.query_reports(loc=location, sec=sector)

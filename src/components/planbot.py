@@ -21,6 +21,9 @@ app.conf.update(result_expires=60,
 logging.basicConfig(level=logging.INFO)
 logging.getLogger("requests").setLevel(logging.WARNING)
 
+uncap_words = ['a', 'an', 'and', 'as', 'at', 'but', 'by', 'en', 'for', 'if',
+               'in', 'of', 'on', 'or', 'the', 'to', 'via']
+
 
 def titlecase(phrase):
     if phrase == 'uk':
@@ -29,11 +32,8 @@ def titlecase(phrase):
     phrase = phrase.capitalize()
 
     # don't capitalise certain words
-    with open('data/uncap.txt') as f:
-        uncap = [line.replace('\n', '') for line in f]
-
     for word in phrase.split()[1:]:
-        if word not in uncap:
+        if word not in uncap_words:
             phrase = phrase.replace(word, word.capitalize())
 
     # uppercase acronyms and lowercase longer text in parentheses
@@ -47,23 +47,24 @@ def titlecase(phrase):
 
 class Planbot(Task):
 
-    switch = {
-        'definitions': self.get_direct,
-        'use_classes': self.get_use_class,
-        'projects': self.get_options,
-        'documents': self.get_options,
-        'local_plans': self.get_local_plan,
-        'reports': self.get_reports}
-
     def __init__(self, action, query, sector=None):
         self.action, self.query = action, self.ready(query)
         self.sector = self.ready(sector) if sector else sector
         self.result = self.options = None
+
+        switch = {
+            'definitions': self.get_direct,
+            'use_classes': self.get_use_class,
+            'projects': self.get_options,
+            'documents': self.get_options,
+            'local_plans': self.get_local_plan,
+            'reports': self.get_reports}
+
         self.db = ConnectDB(action)
-        self.switch[action]()
+        switch[action]()
         self.db.close()
 
-    def get_direct():
+    def get_direct(self):
         res = self.db.query_spec(self.query, spec='EQL')
         if res:
             self.result = self.process(res)
@@ -74,53 +75,53 @@ class Planbot(Task):
             self.run_options()
         return None
 
-    def get_options():
+    def get_options(self):
         res = [k[0] for k in self.db.query_spec(self.query, spec='LIKE')]
         if len(res) == 1:
-            res = self.db.query_spec(options[0], spec='EQL')
+            res = self.db.query_spec(res[0], spec='EQL')
             self.result = self.process(res)
         elif not res:
-            keys = db_object.query_keys()
+            keys = self.db.query_keys()
             res = self.semantic_analysis(keys)
             self.options = [titlecase(k) for k in res]
         else:
             self.options = [titlecase(k) for k in res]
         return None
 
-    def get_use_class():
-        if 'list' in phrase:
+    def get_use_class(self):
+        if 'list' in self.query:
             keys = self.db.query_keys()
             self.result = sorted([titlecase(key) for key in keys])
         else:
             self.run_options()
             return None
 
-    def get_local_plan():
+    def get_local_plan(self):
         def find_lpa(postcode):
             api = 'https://api.postcodes.io/postcodes/'
-            res = requests.get(url + postcode).json()
+            res = requests.get(api + postcode).json()
             if res.get('result'):
-                return data['result']['admin_district'].lower()
+                return res['result']['admin_district'].lower()
 
         if re.compile(r'[A-Z]+\d+[A-Z]?\s?\d[A-Z]+', re.I).search(self.query):
             council = find_lpa(self.query)
             if not council:
-                logging.info('No council found for {}'.format(phrase))
+                logging.info('No council found for {}'.format(self.query))
             else:
                 self.query = council
 
         self.get_direct()
         return None
 
-    def get_reports():
-        res = reports.query_reports(loc=self.query, sec=self.sector)
+    def get_reports(self):
+        res = self.db.query_reports(loc=self.query, sec=self.sector)
         if res:
             titles = [r[0] for r in res]
             links = [r[1] for r in res]
             self.result = (titles, links)
         return None
 
-    def sem_analysis(keys):
+    def sem_analysis(self, keys):
         def ratio_gen():
             for key in keys:
                 yield key, nlp(self.query).similarity(nlp(key))
@@ -130,7 +131,7 @@ class Planbot(Task):
 
         return self.spell_check(keys) if not entities else entities
 
-    def spell_check(keys):
+    def spell_check(self, keys):
         def ratio_gen():
             for key in keys:
                 yield key, Levenshtein.ratio(self.query, key)
@@ -139,11 +140,16 @@ class Planbot(Task):
 
         return [entity[0]] if entity[1] > 0.75 else []
 
+    @staticmethod
     def ready(phrase):
         return phrase.replace('...', '').lower()
 
+    @staticmethod
     def process(result):
         return titlecase(result[0]), result[1]
+
+    def result(self):
+        return self.result, self.options
 
 
 if __name__ == '__main__':

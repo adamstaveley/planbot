@@ -6,7 +6,7 @@ class ConnectDB():
     """Connect to the planbot database and access a table."""
 
     tables = ['glossary', 'use_classes', 'projects', 'documents',
-              'local_plans', 'reports']
+              'local_plans', 'reports', 'responses']
 
     def __init__(self, table):
         self.conn = psycopg2.connect('dbname=planbot')
@@ -15,6 +15,16 @@ class ConnectDB():
             raise Exception('Invalid table: {}'.format(table))
         else:
             self.table = table
+
+    def query_response(self, message):
+        """Return response given message."""
+        response = {}
+        self.cursor.execute('''SELECT message, quickreplies FROM responses
+                               WHERE context=%s''', message)
+
+        res = self.cursor.fetchall()
+        response['message'], response['quickreplies'] = res
+        return res
 
     def query_keys(self):
         """Return all keys from a table."""
@@ -27,7 +37,7 @@ class ConnectDB():
         """Submit a database lookup. The spec kwarg takes one of 'EQL' or
            'LIKE' for respective lookup types. EQL returns a sole key-value
            whereas LIKE returns multiple keys where the query is found."""
-
+        res = None
         assert spec in ['EQL', 'LIKE']
         if spec == 'EQL':
             self.cursor.execute(SQL("SELECT * FROM {} WHERE key=%s").format(

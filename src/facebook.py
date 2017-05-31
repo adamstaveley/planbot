@@ -6,14 +6,11 @@ Wit and Facebook Graph APIs.
 
 import os
 import logging
-from collections import OrderedDict
 
 import requests
-import redis
 from bottle import Bottle, request, debug
 
-from planbot import *
-from engine import Engine
+from components.engine import Engine
 
 # set environmental variables
 FB_PAGE_TOKEN = os.environ.get('FB_PAGE_TOKEN')
@@ -58,7 +55,7 @@ def messenger_post():
                 logging.info('Message received: {}'.format(text))
                 sender_action(fb_id)
                 bot = Engine(user=fb_id, message=text)
-                send(bot.get_response())
+                send(bot.response())
     else:
         return 'Received Different Event'
     return None
