@@ -5,7 +5,7 @@ import re
 import spacy
 import Levenshtein
 import requests
-from celery import Celery, Task
+from celery import Celery
 
 from connectdb import ConnectDB
 
@@ -23,6 +23,13 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 
 uncap_words = ['a', 'an', 'and', 'as', 'at', 'but', 'by', 'en', 'for', 'if',
                'in', 'of', 'on', 'or', 'the', 'to', 'via']
+
+
+def get_result(task):
+    try:
+        return task.get()
+    except Exception as err:
+        logging.info('Result error: {}'.format(err))
 
 
 def titlecase(phrase):
@@ -45,14 +52,35 @@ def titlecase(phrase):
     return phrase
 
 
-class Planbot(Task):
+@app.task
+def semantic_analysis(query, keys):
+    def ratio_gen():
+        for key in keys:
+            yield key, nlp(query).similarity(nlp(key))
 
-    def __init__(self, action, query, sector=None):
-        self.action, self.query = action, self.ready(query)
-        self.sector = self.ready(sector) if sector else sector
+    entities = {key: ratio for key, ratio in ratio_gen() if ratio > 0.5}
+    entities = sorted(entities, key=entities.get, reverse=True)[:3]
+
+    return spell_check(query, keys) if not entities else entities
+
+
+def spell_check(query, keys):
+    def ratio_gen():
+        for key in keys:
+            yield key, Levenshtein.ratio(query, key)
+
+    entity = max(ratio_gen(), key=itemgetter(1))
+
+    return [entity[0]] if entity[1] > 0.75 else []
+
+
+class Planbot:
+
+    def __init__(self):
+        self.action = self.query = self.sector = None
         self.result = self.options = None
-
-        switch = {
+        self.db = None
+        self.switch = {
             'definitions': self.get_direct,
             'use_classes': self.get_use_class,
             'projects': self.get_options,
@@ -60,9 +88,16 @@ class Planbot(Task):
             'local_plans': self.get_local_plan,
             'reports': self.get_reports}
 
+    def run_task(self, action, query, sector=None):
+        self.result = self.options = None
+        self.action = action
+        self.query = self.ready(query)
+        self.sector = self.ready(sector) if sector else sector
+
         self.db = ConnectDB(action)
-        switch[action]()
+        self.switch[action]()
         self.db.close()
+        return self.result, self.options
 
     def get_direct(self):
         res = self.db.query_spec(self.query, spec='EQL')
@@ -72,7 +107,7 @@ class Planbot(Task):
             if self.action == 'local_plans':
                 for word in ['borough', 'council', 'district', 'london']:
                     self.query = self.query.replace(word, '')
-            self.run_options()
+            self.get_options()
         return None
 
     def get_options(self):
@@ -82,7 +117,7 @@ class Planbot(Task):
             self.result = self.process(res)
         elif not res:
             keys = self.db.query_keys()
-            res = self.semantic_analysis(keys)
+            res = get_result(semantic_analysis.delay(self.query, keys))
             self.options = [titlecase(k) for k in res]
         else:
             self.options = [titlecase(k) for k in res]
@@ -93,7 +128,7 @@ class Planbot(Task):
             keys = self.db.query_keys()
             self.result = sorted([titlecase(key) for key in keys])
         else:
-            self.run_options()
+            self.get_options()
             return None
 
     def get_local_plan(self):
@@ -121,25 +156,6 @@ class Planbot(Task):
             self.result = (titles, links)
         return None
 
-    def sem_analysis(self, keys):
-        def ratio_gen():
-            for key in keys:
-                yield key, nlp(self.query).similarity(nlp(key))
-
-        entities = {key: ratio for key, ratio in ratio_gen() if ratio > 0.5}
-        entities = sorted(entities, key=entities.get, reverse=True)[:3]
-
-        return self.spell_check(keys) if not entities else entities
-
-    def spell_check(self, keys):
-        def ratio_gen():
-            for key in keys:
-                yield key, Levenshtein.ratio(self.query, key)
-
-        entity = max(ratio_gen(), key=itemgetter(1))
-
-        return [entity[0]] if entity[1] > 0.75 else []
-
     @staticmethod
     def ready(phrase):
         return phrase.replace('...', '').lower()
@@ -148,10 +164,7 @@ class Planbot(Task):
     def process(result):
         return titlecase(result[0]), result[1]
 
-    def result(self):
-        return self.result, self.options
-
 
 if __name__ == '__main__':
     nlp = spacy.load('en_vectors_glove_md')
-    app.run()
+    app.start()

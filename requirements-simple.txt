@@ -1,4 +1,0 @@
-bottle==0.12.10
-requests==2.12.3
-wit==4.2.0
-python-Levenshtein==0.12.0

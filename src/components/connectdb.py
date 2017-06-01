@@ -5,7 +5,7 @@ from psycopg2.sql import SQL, Identifier
 class ConnectDB():
     """Connect to the planbot database and access a table."""
 
-    tables = ['glossary', 'use_classes', 'projects', 'documents',
+    tables = ['definitions', 'use_classes', 'projects', 'documents',
               'local_plans', 'reports', 'responses']
 
     def __init__(self, table):
@@ -16,15 +16,16 @@ class ConnectDB():
         else:
             self.table = table
 
-    def query_response(self, message):
+    def query_response(self, context):
         """Return response given message."""
-        response = {}
         self.cursor.execute('''SELECT message, quickreplies FROM responses
-                               WHERE context=%s''', message)
+                               WHERE context=%s''', [context])
 
-        res = self.cursor.fetchall()
-        response['message'], response['quickreplies'] = res
-        return res
+        res = self.cursor.fetchone()
+        if not res:
+            self.query_response('NO_PAYLOAD')
+        response = {'message': res[0], 'quickreplies': res[1]}
+        return response
 
     def query_keys(self):
         """Return all keys from a table."""

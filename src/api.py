@@ -20,17 +20,8 @@ if __name__ == '__main__':
     app.run()
 
 
-def get_result(obj):
-    try:
-        return obj.get()
-    except Exception as err:
-        logging.info('Result error: {}'.format(err))
-
-
 @app.get('/<path:path>')
 def process_params(path):
-    """Handle GET request with relevant function call and send response."""
-
     response.headers['Content-Type'] = 'application/json'
     path = path.replace('-', ' ').replace('_', ' ').replace('%20', ' ')
     params = path.strip('/').split('/')
@@ -51,8 +42,6 @@ def process_params(path):
 
 
 def return_all_data(action):
-    """Called if no specific parameter is given for an action."""
-
     resp = dict()
 
     if action == 'reports':
@@ -73,15 +62,13 @@ def return_all_data(action):
 
 
 def answer_query(params):
-    """Called if a specific parameter is given for an action."""
-
     action, param = params
     action = switch[action]
     resp = dict()
 
     try:
-        planbot = Planbot.delay(action, param)
-        result, options = (get_result(planbot.result()))
+        planbot = Planbot()
+        result, options = get_result(planbot.run_task(action, param))
     except KeyError:
         resp['success'] = False
         resp['error'] = 'action \'{}\' not found'.format(action)
@@ -99,8 +86,6 @@ def answer_query(params):
 
 
 def handle_report_query(location=None, sector=None):
-    """Called by report action. Sector argument is optional."""
-
     resp = dict()
     db = ConnectDB('reports')
 

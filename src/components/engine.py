@@ -6,22 +6,9 @@ from planbot import Planbot, titlecase
 from connectdb import ConnectDB
 
 
-def get_result(obj):
-    try:
-        return obj.get()
-    except Exception as err:
-        logging.info('Callback exception: {}'.format(err))
-
-
 class Engine:
-    """
-    This class should return an array consisting of messages. Each message
-    is a dictionary consisting of fields: id, text, title (for templates) and
-    quickreplies.
-    """
 
     actions = {
-        'GET_STARTED_PAYLOAD': None,
         'DEFINE_PAYLOAD': 'definitions',
         'USE_PAYLOAD': 'use_classes',
         'PD_PAYLOAD': 'projects',
@@ -30,11 +17,18 @@ class Engine:
         'REPORT_PAYLOAD': 'reports'}
 
     def __init__(self, user=None, message=None):
+        self.context = self.get_context(user)
         self.user = user
         self.message = message
+        # self.result = self.options = None
         self.resp = {'id': user}
-        self.multi_resp = []
+        self.resp_array = []
+
+    def response(self):
         self.run_actions()
+        self.set_context(self.user, self.context)
+        self.resp_array.append(self.resp)
+        return self.resp_array
 
     @staticmethod
     def set_context(key, value):
@@ -47,11 +41,6 @@ class Engine:
         store = redis.Redis(connection_pool=redis.ConnectionPool())
         return store.get(key)
 
-    def del_context(self):
-        store = redis.Redis(connection_pool=redis.ConnectionPool())
-        store.delete(self.user)
-        return None
-
     @staticmethod
     def query_db(message):
         db = ConnectDB('responses')
@@ -60,109 +49,104 @@ class Engine:
         return response
 
     def run_actions(self):
-        context = Engine.get_context(self.user)
-        if not context:
+        if not self.context or self.message in self.actions:
             self.init_branch()
-        elif self.message in self.actions and self.message not in context:
-            self.init_branch()
-        elif context == 'REPORT_PAYLOAD_SECTOR':
+        elif self.context == 'REPORT_PAYLOAD_SECTOR':
+            if self.message == 'Cancel':
+                self.select_response()
             self.report_sectors()
         else:
-            self.get_response()
+            self.select_response()
         return None
 
     def init_branch(self):
-        if self.message not in self.actions:
-            self.message = 'NO_PAYLOAD'
+        if self.message in ['GET_STARTED_PAYLOAD', 'CONTACT_PAYLOAD']:
+            pass
         else:
-            Engine.set_context(self.user, self.message + '_CALL')
+            call = '_SECTOR' if self.message == 'REPORT_PAYLOAD' else '_CALL'
+            self.context = self.message + call
 
-        response = Engine.query_db(self.message)
+        self.resp.update(self.query_db(self.message))
+        self.next_steps()
+        return None
 
-        self.resp['text'] = response['message']
-        if self.message == 'REPORT_PAYLOAD':
-            db = ConnectDB('reports')
-            self.resp['quickreplies'] = db.distinct_locations() + ['Cancel']
-            db.close()
-            Engine.set_context(self.user, 'REPORT_PAYLOAD_SECTOR')
-        elif self.message == 'CONTACT_PAYLOAD':
-            self.contact()
+    def next_steps(self):
+        if self.message == 'CONTACT_PAYLOAD':
+            self.resp_array.append(self.resp)
+            self.resp.update({
+                'title': ['My website', 'My Facebook page'],
+                'text': 'https://planbot.co https://fb.me/planbotco'})
         else:
-            qr = response['quickreplies']
+            qr = self.resp['quickreplies']
             if qr:
-                qr_array = qr.split('/')
-                self.resp['quickreplies'] = [titlecase(qr) for qr in qr_array]
+                self.resp['quickreplies'] = qr.split('/')
         return None
 
     def report_sectors(self):
-        location = Engine.get_context(self.user + 'loc')
-        response = Engine.query_db('REPORT_PAYLOAD_SECTOR')
-        self.resp['text'] = response['message']
+        self.set_context(self.user + 'loc', self.message)
+        self.resp.update(self.query_db('REPORT_PAYLOAD_SECTOR'))
         db = ConnectDB('reports')
-        self.resp['quickreplies'] = db.distinct_sectors(location) + ['Go back']
+        sectors = [titlecase(sec) for sec in db.distinct_sectors(self.message)]
+        self.resp['quickreplies'] = sectors + ['Go back']
         db.close()
-        Engine.set_context(self.user, 'REPORT_PAYLOAD_CALL')
+        self.context = 'REPORT_PAYLOAD_CALL'
         return None
 
-    def contact(self):
-        self.resp.update(Engine.query_db(self.message))
-        next_resp = {
-            'title': ['My website', 'My Facebook page'],
-            'text': 'https://planbot.co https://fb.me/planbotco'}
-        self.multi_resp = [self.resp, next_resp]
-        return None
-
-    def get_response(self):
-        context = Engine.get_context(self.user)
-        if self.message in ['Cancel', 'Thanks, bye!']:
-            self.del_context()
-        elif self.message == 'Try again':
-            Engine.set_context(self.user, context.replace('_CALL', ''))
+    def select_response(self):
+        if self.message.startswith(('Try again', 'More', 'Go back')):
+            self.message = self.context.replace('_CALL', '')
             self.init_branch()
-        elif context.endswith('CALL'):
-            self.call(context)
+        elif self.context.endswith(('CALL', 'SECTOR')):
+            if self.message == 'Cancel':
+                self.context = None
+                self.select_response()
+            else:
+                self.call()
         else:
-            response = Engine.query_db(self.message)
-            self.resp.update(response)
+            if self.message == 'Thanks, bye!':
+                self.context = None
+            self.resp.update(self.query_db(self.message))
         return None
 
-    def call(self, context):
-        context = context.replace('_CALL', '')
-        action = self.actions[context]
-        if context == 'REPORT_CONTEXT':
-            location = Engine.get_context(self.user + 'loc')
-            pb = Planbot.delay(action, location, sector=self.message)
-            result, options = get_result(pb.result())
+    def call(self):
+        self.context = self.context.replace('_CALL', '')
+        action = self.actions[self.context]
+        pb = Planbot()
+        if self.context == 'REPORT_PAYLOAD':
+            location = self.get_context(self.user + 'loc')
+            result, options = pb.run_task(action,
+                                          location,
+                                          sector=self.message)
         else:
-            pb = Planbot.delay(action, self.message)
-            result, options = get_result(pb.result())
+            result, options = pb.run_task(action, self.message)
 
-        self.process_call(context, result=result, options=options)
+        self.process_call(result=result, options=options)
         return None
 
-    def process_call(self, context, result=None, options=None):
+    def process_call(self, result=None, options=None):
         if result:
-            self.format_result(context, result)
-            next_resp = Engine.query_db('success')
-            branch = self.actions[context].replace('_', ' ')
-            next_resp['quickreplies'] = ['More ' + branch, 'Thanks, bye!']
-            self.multi_resp = [self.resp, next_resp]
+            self.format_result(result)
+            self.resp_array.append(self.resp)
+            self.resp.update(self.query_db('Success'))
+            branch = self.actions[self.context].replace('_', ' ')
+            self.resp['quickreplies'] = ['More ' + branch, 'Thanks, bye!']
         elif options:
             self.format_options(options)
             self.resp['quickreplies'] = options + ['Cancel']
-            Engine.set_context(self.user, context + '_CALL')
+            self.context += '_CALL'
         else:
-            self.resp.update(Engine.query_db('Failure'))
+            self.resp.update(self.query_db('Failure'))
+            self.resp['quickreplies'] = self.resp['quickreplies'].split('/')
         return None
 
-    def format_result(self, context, result):
-        if context in ['DEFINE_PAYLOAD', 'USE_PAYLOAD']:
+    def format_result(self, result):
+        if self.context in ['DEFINE_PAYLOAD', 'USE_PAYLOAD']:
             if len(result) == 16:
-                self.resp['text'] = Engine.format_text(uses=result)
+                self.resp['text'] = self.format_text(uses=result)
             else:
-                self.resp['text'] = Engine.format_text(pair=result)
+                self.resp['text'] = self.format_text(pair=result)
             return None
-        elif context == 'REPORT_PAYLOAD':
+        elif self.context == 'REPORT_PAYLOAD':
             result = self.format_text(reports=result)
 
         self.resp['title'] = result[0]
@@ -170,7 +154,7 @@ class Engine:
         return None
 
     def format_options(self, options):
-        msg = Engine.query_db('options')['message']
+        msg = self.query_db('options')['message']
         self.resp['text'] = msg + self.format_text(options=options)
         return None
 
@@ -186,9 +170,3 @@ class Engine:
             titles = reports[0][:10]
             urls = ' '.join(reports[1][:10])
             return titles, urls
-
-    def response(self):
-        try:
-            return self.multi_resp
-        except AttributeError:
-            return self.resp

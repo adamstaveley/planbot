@@ -53,9 +53,10 @@ def messenger_post():
                         text = None
 
                 logging.info('Message received: {}'.format(text))
-                sender_action(fb_id)
                 bot = Engine(user=fb_id, message=text)
-                send(bot.response())
+                for response in bot.response():
+                    sender_action(fb_id)
+                    send(response)
     else:
         return 'Received Different Event'
     return None
@@ -68,6 +69,24 @@ def sender_action(sender_id):
                          json=data)
 
     return resp.content
+
+
+def send(response):
+    fb_id = response['id']
+    text = response['text']
+    quickreplies = cards = None
+
+    # check for quickreplies
+    if response.get('quickreplies'):
+        quickreplies = format_qr(response['quickreplies'])
+
+    # check for urls
+    if text.startswith('http'):
+        urls = text.split()
+        titles = response['title']
+        cards = template(titles, urls)
+
+    fb_message(fb_id, text, quickreplies, cards)
 
 
 def fb_message(sender_id, text, quickreplies, cards):
@@ -84,24 +103,6 @@ def fb_message(sender_id, text, quickreplies, cards):
                          json=data)
 
     return resp.content
-
-
-def send(response):
-    fb_id = response['id']
-    text = response['text']
-    q_replies = cards = None
-
-    # check for quickreplies
-    if response.get('quickreplies'):
-        quickreplies = format_qr(response['quickreplies'])
-
-    # check for urls
-    if text.startswith('http'):
-        urls = text.split()
-        titles = response['title']
-        cards = template(titles, urls)
-
-    fb_message(fb_id, text, q_replies, cards)
 
 
 def format_qr(quickreplies):
