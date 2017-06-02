@@ -70,24 +70,23 @@ set up a development environment like so:
 
 ## APIs
 
-**engine**
+### **engine**
 ```python
->>> bot = Engine(user='123', message='GET_STARTED_PAYLOAD')
->>> bot.response()
-[{'id': '123', 'text': 'Hello! What can I help you with? Select an option from the menu to get started.'}]
+>>> bot = Engine()
+>>> bot.response(user='123', message='GET_STARTED_PAYLOAD')
+[{'id': '123', 'text': 'Hello! What can I help you with? Select an option from the menu to get started.', 'quickreplies': None}]
 ```
 
-**planbot**
+### **planbot**
 
 Run `celery` worker with logging: `python3 planbot.py worker -l info`
 ```python
 >>> pb = Planbot()
->>> # run_tasks(sql_table, query)
->>> pb.run_tasks('definitions', 'viability')
+>>> # pb.run_task(action='reports', query='london', sector='commercial')
+>>> pb.run_task(action='definitions', query='viability')
 (('Viability', 'In terms of retailing, a centre that is capable of commercial success.'), None)
 ```
-
-**connectdb**
+### **connectdb**
 
 **`ConnectDB`**
 
@@ -107,7 +106,7 @@ Initialised with the name of a database table.
     different query types.
 
     Direct lookup using EQL returns a (key, value) tuple whereas
-    not-direct lookup using LIKE returns all keys matching `phrase`.
+    indirect lookup using LIKE returns all keys matching `phrase`.
 
 * **`distinct_locations()`**
 
@@ -119,9 +118,9 @@ Initialised with the name of a database table.
 
 * **`query_reports(loc=None, sec=None)`**
 
-    Fetches report queries and returns an array of tuples containing
-    given fields. Depending on what whether a location
-    and sector is passed, different fields will be returned.
+    Fetches report queries and returns an array of tuples. Depending on
+    whether a location and sector is passed, different fields will be
+    returned.
 
     If neither is given, all fields will be returned from the table.
 
@@ -130,3 +129,7 @@ Initialised with the name of a database table.
 
     Lastly, if both are given, all reports matching the arguements will
     be returned with a title and url field.
+
+* **`close()`**
+
+    Close connection to the database.

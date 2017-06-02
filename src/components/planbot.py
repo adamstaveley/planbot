@@ -88,7 +88,7 @@ class Planbot:
             'local_plans': self.get_local_plan,
             'reports': self.get_reports}
 
-    def run_task(self, action, query, sector=None):
+    def run_task(self, action=None, query=None, sector=None):
         self.result = self.options = None
         self.action = action
         self.query = self.ready(query)

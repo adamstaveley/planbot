@@ -18,13 +18,13 @@ class ConnectDB():
 
     def query_response(self, context):
         """Return response given message."""
-        self.cursor.execute('''SELECT message, quickreplies FROM responses
+        self.cursor.execute('''SELECT response, quickreplies FROM responses
                                WHERE context=%s''', [context])
 
         res = self.cursor.fetchone()
         if not res:
             self.query_response('NO_PAYLOAD')
-        response = {'message': res[0], 'quickreplies': res[1]}
+        response = {'text': res[0], 'quickreplies': res[1]}
         return response
 
     def query_keys(self):

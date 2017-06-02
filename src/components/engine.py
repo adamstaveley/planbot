@@ -16,29 +16,33 @@ class Engine:
         'LP_PAYLOAD': 'local_plans',
         'REPORT_PAYLOAD': 'reports'}
 
-    def __init__(self, user=None, message=None):
-        self.context = self.get_context(user)
-        self.user = user
-        self.message = message
-        # self.result = self.options = None
-        self.resp = {'id': user}
+    def __init__(self):
+        self.context = self.user = self.message = self.resp = None
         self.resp_array = []
 
-    def response(self):
+    def response(self, user=None, message=None):
+        self.context = self.get_context(user)
+        self.context = None if self.context == 'None' else self.context
+        self.user, self.message = user, message
+        self.resp = {'id': user}
         self.run_actions()
         self.set_context(self.user, self.context)
+
         self.resp_array.append(self.resp)
-        return self.resp_array
+        reponse = self.resp_array
+        self.resp = None
+        self.resp_array = []
+        return response
 
     @staticmethod
     def set_context(key, value):
-        store = redis.Redis(connection_pool=redis.ConnectionPool())
+        store = redis.StrictRedis()
         store.set(key, value)
         return None
 
     @staticmethod
     def get_context(key):
-        store = redis.Redis(connection_pool=redis.ConnectionPool())
+        store = redis.StrictRedis(decode_response=True)
         return store.get(key)
 
     @staticmethod
@@ -114,11 +118,11 @@ class Engine:
         pb = Planbot()
         if self.context == 'REPORT_PAYLOAD':
             location = self.get_context(self.user + 'loc')
-            result, options = pb.run_task(action,
-                                          location,
+            result, options = pb.run_task(action=action,
+                                          query=location,
                                           sector=self.message)
         else:
-            result, options = pb.run_task(action, self.message)
+            result, options = pb.run_task(action=action, query=self.message)
 
         self.process_call(result=result, options=options)
         return None
@@ -126,7 +130,8 @@ class Engine:
     def process_call(self, result=None, options=None):
         if result:
             self.format_result(result)
-            self.resp_array.append(self.resp)
+            first_message = self.resp
+            self.resp_array.append(first_message)
             self.resp.update(self.query_db('Success'))
             branch = self.actions[self.context].replace('_', ' ')
             self.resp['quickreplies'] = ['More ' + branch, 'Thanks, bye!']
@@ -145,12 +150,14 @@ class Engine:
                 self.resp['text'] = self.format_text(uses=result)
             else:
                 self.resp['text'] = self.format_text(pair=result)
+            self.resp['quickreplies'] = None
             return None
         elif self.context == 'REPORT_PAYLOAD':
             result = self.format_text(reports=result)
 
         self.resp['title'] = result[0]
         self.resp['text'] = result[1]
+        self.resp['quickreplies'] = None
         return None
 
     def format_options(self, options):
