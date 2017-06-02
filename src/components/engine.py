@@ -9,6 +9,8 @@ from connectdb import ConnectDB
 class Engine:
 
     actions = {
+        'GET_STARTED_PAYLOAD': None,
+        'CONTACT_PAYLOAD': None,
         'DEFINE_PAYLOAD': 'definitions',
         'USE_PAYLOAD': 'use_classes',
         'PD_PAYLOAD': 'projects',
@@ -29,7 +31,7 @@ class Engine:
         self.set_context(self.user, self.context)
 
         self.resp_array.append(self.resp)
-        reponse = self.resp_array
+        response = self.resp_array
         self.resp = None
         self.resp_array = []
         return response
@@ -42,7 +44,7 @@ class Engine:
 
     @staticmethod
     def get_context(key):
-        store = redis.StrictRedis(decode_response=True)
+        store = redis.StrictRedis(decode_responses=True)
         return store.get(key)
 
     @staticmethod
@@ -58,12 +60,14 @@ class Engine:
         elif self.context == 'REPORT_PAYLOAD_SECTOR':
             if self.message == 'Cancel':
                 self.select_response()
-            self.report_sectors()
+            else:
+                self.report_sectors()
         else:
             self.select_response()
         return None
 
     def init_branch(self):
+        self.context = None
         if self.message in ['GET_STARTED_PAYLOAD', 'CONTACT_PAYLOAD']:
             pass
         else:
@@ -76,7 +80,8 @@ class Engine:
 
     def next_steps(self):
         if self.message == 'CONTACT_PAYLOAD':
-            self.resp_array.append(self.resp)
+            first_message = dict(self.resp)
+            self.resp_array.append(first_message)
             self.resp.update({
                 'title': ['My website', 'My Facebook page'],
                 'text': 'https://planbot.co https://fb.me/planbotco'})
@@ -87,7 +92,7 @@ class Engine:
         return None
 
     def report_sectors(self):
-        self.set_context(self.user + 'loc', self.message)
+        self.set_context(str(self.user) + 'loc', self.message)
         self.resp.update(self.query_db('REPORT_PAYLOAD_SECTOR'))
         db = ConnectDB('reports')
         sectors = [titlecase(sec) for sec in db.distinct_sectors(self.message)]
@@ -100,14 +105,11 @@ class Engine:
         if self.message.startswith(('Try again', 'More', 'Go back')):
             self.message = self.context.replace('_CALL', '')
             self.init_branch()
-        elif self.context.endswith(('CALL', 'SECTOR')):
-            if self.message == 'Cancel':
-                self.context = None
-                self.select_response()
-            else:
-                self.call()
+        elif self.context.endswith(('CALL', 'SECTOR')) and \
+                not self.message == 'Cancel':
+            self.call()
         else:
-            if self.message == 'Thanks, bye!':
+            if self.message in ['Cancel', 'Thanks, bye!']:
                 self.context = None
             self.resp.update(self.query_db(self.message))
         return None
@@ -117,7 +119,7 @@ class Engine:
         action = self.actions[self.context]
         pb = Planbot()
         if self.context == 'REPORT_PAYLOAD':
-            location = self.get_context(self.user + 'loc')
+            location = self.get_context(str(self.user) + 'loc')
             result, options = pb.run_task(action=action,
                                           query=location,
                                           sector=self.message)
@@ -130,8 +132,10 @@ class Engine:
     def process_call(self, result=None, options=None):
         if result:
             self.format_result(result)
-            first_message = self.resp
+            first_message = dict(self.resp)
             self.resp_array.append(first_message)
+            if self.resp.get('title'):
+                del self.resp['title']
             self.resp.update(self.query_db('Success'))
             branch = self.actions[self.context].replace('_', ' ')
             self.resp['quickreplies'] = ['More ' + branch, 'Thanks, bye!']
@@ -161,7 +165,7 @@ class Engine:
         return None
 
     def format_options(self, options):
-        msg = self.query_db('options')['message']
+        msg = self.query_db('options')['text']
         self.resp['text'] = msg + self.format_text(options=options)
         return None
 

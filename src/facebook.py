@@ -53,8 +53,8 @@ def messenger_post():
                         text = None
 
                 logging.info('Message received: {}'.format(text))
-                bot = Engine(user=fb_id, message=text)
-                for response in bot.response():
+                bot = Engine()
+                for response in bot.response(user=fb_id, message=text):
                     sender_action(fb_id)
                     send(response)
     else:
@@ -87,6 +87,7 @@ def send(response):
         cards = template(titles, urls)
 
     fb_message(fb_id, text, quickreplies, cards)
+    return None
 
 
 def fb_message(sender_id, text, quickreplies, cards):
@@ -114,15 +115,8 @@ def format_qr(quickreplies):
 
 
 def template(titles, urls):
-    if not isinstance(titles, list):
-        titles = [titles]
-    if not isinstance(urls, list):
-        urls = urls.split()
-
     button_titles = ['Download' if url.endswith('pdf') else 'View'
                      for url in urls]
-
-    assert len(titles) == len(urls)
 
     elements = [{
         'title': titles[i],

@@ -63,12 +63,11 @@ def return_all_data(action):
 
 def answer_query(params):
     action, param = params
-    action = switch[action]
     resp = dict()
 
     try:
         planbot = Planbot()
-        result, options = get_result(planbot.run_task(action=action,
+        result, options = get_result(planbot.run_task(action=switch[action],
                                                       query=param))
     except KeyError:
         resp['success'] = False
