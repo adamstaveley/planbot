@@ -68,7 +68,8 @@ def answer_query(params):
 
     try:
         planbot = Planbot()
-        result, options = get_result(planbot.run_task(action, param))
+        result, options = get_result(planbot.run_task(action=action,
+                                                      query=param))
     except KeyError:
         resp['success'] = False
         resp['error'] = 'action \'{}\' not found'.format(action)
