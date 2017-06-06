@@ -17,15 +17,19 @@ Sources used:
 * Gerald Eve
 * Knight Frank
 
+Planbot uses [Postcodes.io](https://github.com/ideal-postcodes/postcodes.io/) to parse
+user location data.
+
 ---
 
 ## Usage
 
-Planbot is currently available on [Facebook Messenger](https://m.me/planbotco), though
-further platform integration is planned. Planbot works within the guidelines of
-Messenger's bot platform, that is, a conversation based around menus. This
-works well in minimising frustration common with chatbots, as the bot's capabilities
-are clearly communicated to the user.
+Planbot is currently available on [Facebook Messenger](https://m.me/planbotco) and
+[Slack](https://slack.com/oauth/authorize?scope=commands&client_id=162051889907.192270162849).
+Planbot works within the guidelines of both platforms: a menu-based conversation
+structure in Messenger alongside the use of commands in Slack for quickly querying
+Planbot's database. This works well in minimising frustration common with chatbots,
+as the bot's capabilities are clearly communicated to the user.
 
 Planbot also has a public-facing API for handling direct requests to its database,
 which listens at the <https://api.planbot.co/> subdomain.
@@ -48,7 +52,7 @@ Notes:
 
 ---
 
-## Requirements
+## Requirements and setup
 
 * `python3 [v3.5.3]`
 * `redis-server [v3.0.6]`
@@ -57,11 +61,24 @@ Notes:
 Further Python 3 requirements are accessible via `requirements.txt` *. You can
 set up a development environment like so:
 
-* `git clone https://github.com/ayuopy/planbot.git`
-* `cd planbot`
-* `python3 -m venv venv`
-* `source venv/bin/activate`
-* `pip install requirements.txt` *
+```
+$ git clone https://github.com/ayuopy/planbot.git
+$ cd planbot
+$ python3 -m venv venv
+$ source venv/bin/activate
+$ pip install -r requirements.txt
+```
+
+You will also need to setup a test database. You can use `pg_restore` with the
+supplied `src/components/data/planbot.SQL` dump file.
+
+Be sure to add the absolute path of the components directory to your PYTHONPATH
+to avoid issues with relative imports:
+
+```
+$ echo 'export PYTHONPATH=/path/to/components' > ~/.bashrc
+$ source .bashrc
+```
 
 \* note that `spacy` is memory intensive: at least 1gb of free disk space and
 4gb RAM is recommended.
@@ -86,6 +103,7 @@ Run `celery` worker with logging: `python3 planbot.py worker -l info`
 >>> pb.run_task(action='definitions', query='viability')
 (('Viability', 'In terms of retailing, a centre that is capable of commercial success.'), None)
 ```
+
 ### **connectdb**
 
 **`ConnectDB`**

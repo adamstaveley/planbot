@@ -23,8 +23,8 @@ class Engine:
         self.resp_array = []
 
     def response(self, user=None, message=None):
-        self.context = self.get_context(user)
-        self.context = None if self.context == 'None' else self.context
+        context = self.get_context(user)
+        self.context = None if context == 'None' else context
         self.user, self.message = user, message
         self.resp = {'id': user}
         self.run_actions()
@@ -68,7 +68,10 @@ class Engine:
 
     def init_branch(self):
         self.context = None
-        if self.message in ['GET_STARTED_PAYLOAD', 'CONTACT_PAYLOAD']:
+        if self.message not in self.actions:
+            self.resp.update(self.query_db(self.message))
+            return None
+        elif self.message in ['GET_STARTED_PAYLOAD', 'CONTACT_PAYLOAD']:
             pass
         else:
             call = '_SECTOR' if self.message == 'REPORT_PAYLOAD' else '_CALL'

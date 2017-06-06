@@ -17,19 +17,23 @@ class ConnectDB():
             self.table = table
 
     def query_response(self, context):
-        """Return response given message."""
+        """Return response given message/context."""
+
+        assert selft.table == 'responses'
         self.cursor.execute('''SELECT response, quickreplies FROM responses
                                WHERE context=%s''', [context])
 
         res = self.cursor.fetchone()
         if not res:
-            self.query_response('NO_PAYLOAD')
-        response = {'text': res[0], 'quickreplies': res[1]}
+            return self.query_response('NO_PAYLOAD')
+        else:
+            response = {'text': res[0], 'quickreplies': res[1]}
         return response
 
     def query_keys(self):
         """Return all keys from a table."""
 
+        assert self.table not in ['reports', 'responses']
         self.cursor.execute(SQL("SELECT key FROM {}").format(
             Identifier(self.table)))
         return [k[0] for k in self.cursor.fetchall()]
@@ -38,7 +42,9 @@ class ConnectDB():
         """Submit a database lookup. The spec kwarg takes one of 'EQL' or
            'LIKE' for respective lookup types. EQL returns a sole key-value
            whereas LIKE returns multiple keys where the query is found."""
+
         res = None
+        assert self.table not in ['reports', 'responses']
         assert spec in ['EQL', 'LIKE']
         if spec == 'EQL':
             self.cursor.execute(SQL("SELECT * FROM {} WHERE key=%s").format(

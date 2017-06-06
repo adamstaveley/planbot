@@ -10,8 +10,8 @@ import logging
 
 from bottle import Bottle, response
 
-from components.planbot import Planbot
-from components.connectdb import ConnectDB
+from planbot import Planbot
+from connectdb import ConnectDB
 
 logging.basicConfig(level=logging.INFO)
 app = application = Bottle()
@@ -36,7 +36,7 @@ def process_params(path):
     elif len(params) == 3:
         resp = handle_report_query(location=params[1], sector=params[2])
     else:
-        resp = {'success': False, 'error': 'invalid number of parameters'}
+        resp = {'success': False, 'error': 'Invalid number of parameters'}
 
     return json.dumps(resp)
 
@@ -48,11 +48,11 @@ def return_all_data(action):
         return handle_report_query()
 
     try:
-        db = ConnectDB(switch[action][1])
+        db = ConnectDB(switch[action])
         res = db.query_keys()
     except KeyError:
         resp['success'] = False
-        resp['error'] = 'action \'{}\' not found'.format(action)
+        resp['error'] = 'Action \'{}\' not found'.format(action)
     else:
         resp['success'] = True
         resp['result'] = res
@@ -66,16 +66,15 @@ def answer_query(params):
     resp = dict()
 
     try:
-        planbot = Planbot()
-        result, options = get_result(planbot.run_task(action=switch[action],
-                                                      query=param))
+        pb = Planbot()
+        result, options = pb.run_task(action=switch[action], query=param)
     except KeyError:
         resp['success'] = False
-        resp['error'] = 'action \'{}\' not found'.format(action)
+        resp['error'] = 'Action \'{}\' not found'.format(action)
     else:
         if not result and not options:
             resp['success'] = False
-            resp['error'] = 'no result found for \'{}\''.format(param)
+            resp['error'] = 'No result found for \'{}\''.format(param)
         else:
             resp['success'] = True
             resp['result'] = {
@@ -88,14 +87,13 @@ def answer_query(params):
 def handle_report_query(location=None, sector=None):
     resp = dict()
     db = ConnectDB('reports')
-
     res = db.query_reports(loc=location, sec=sector)
     if res:
         resp['success'] = True
         resp['result'] = res
     else:
         resp['success'] = False
-        resp['error'] = 'no results found for given location/sector'
+        resp['error'] = 'No results found for given location/sector'
 
     db.close()
     return resp

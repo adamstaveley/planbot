@@ -10,7 +10,7 @@ import logging
 import requests
 from bottle import Bottle, request, debug
 
-from components.engine import Engine
+from engine import Engine
 
 # set environmental variables
 FB_PAGE_TOKEN = os.environ.get('FB_PAGE_TOKEN')
@@ -37,6 +37,7 @@ def messenger_webhook():
 @app.post('/webhook')
 def messenger_post():
     data = request.json
+    responses = []
     if data['object'] == 'page':
         for entry in data['entry']:
             messages = entry['messaging']
@@ -44,21 +45,34 @@ def messenger_post():
                 message = messages[0]
                 fb_id = message['sender']['id']
                 if message.get('message'):
-                    text = message['message']['text']
-                else:
-                    try:
-                        text = message['postback']['payload']
-                    except KeyError:
-                        logging.info('No payload found in postback')
-                        text = None
+                    if message.get('attachments'):
+                        attachment = messsage['message']['attachments'][0]
+                        if attachment['title'] == 'Pinned Location':
+                            long = attachment['coordinates']['long']
+                            lat = attachment['coordinates']['lat']
+                            text = geo_convert(longitude=long, latitude=lat)
+                        else:
+                            text = 'NO_PAYLOAD'
+                    else:
+                        text = message['message']['text']
+                elif message.get('postback'):
+                    text = message['postback']['payload']
 
                 logging.info('Message received: {}'.format(text))
-                bot = Engine()
-                for response in bot.response(user=fb_id, message=text):
-                    sender_action(fb_id)
-                    send(response)
+                responses.append(text)
     else:
         return 'Received Different Event'
+
+    if responses:
+        text = responses[0]
+    else:
+        text = 'NO_PAYLOAD'
+
+    bot = Engine()
+    for response in bot.response(user=fb_id, message=text):
+        sender_action(fb_id)
+        send(response)
+
     return None
 
 
@@ -135,3 +149,15 @@ def template(titles, urls):
             "payload": {
                 "template_type": "generic",
                 "elements": elements}}}
+
+
+def geo_convert(longitude=None, latitude=None):
+    url = 'https://api.postcodes.io/postcodes?lon={}&lat={}'
+    res = requests.get(url).json()
+    try:
+        text = res['result'][0]['admin_district']
+    except KeyError:
+        logging.info('Invalid coordinates: long={}; lat={}'.format(
+            longitude, latitude))
+        text = 'NO_PAYLOAD'
+    return text
