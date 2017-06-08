@@ -24,7 +24,7 @@ app = application = Bottle()
 logging.basicConfig(level=logging.INFO)
 
 
-@app.get('/webhook')
+@app.get('/facebook')
 def messenger_webhook():
     verify_token = request.query.get('hub.verify_token')
     if verify_token == FB_VERIFY_TOKEN:
@@ -34,7 +34,7 @@ def messenger_webhook():
         return 'Invalid Request or Verification Token'
 
 
-@app.post('/webhook')
+@app.post('/facebook')
 def messenger_post():
     data = request.json
     responses = []

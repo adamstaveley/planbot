@@ -45,11 +45,6 @@ Available actions:
 | `lp`      | Request a local plan              | `/lp/area-or-postcode`     |
 | `reports` | Request market research           | `/reports/location/sector` |
 
-Notes:
-* Whitespace characters should be replaced with `-`, `_` or `%20`.
-* If no parameter is given, an action on its own will return all available keys.
-    In the case of `reports`, all reports will be returned.
-
 ---
 
 ## Requirements and setup
@@ -76,7 +71,7 @@ Be sure to add the absolute path of the components directory to your PYTHONPATH
 to avoid issues with relative imports:
 
 ```
-$ echo 'export PYTHONPATH=/path/to/components' > ~/.bashrc
+$ echo 'export PYTHONPATH=/path/to/components' >> ~/.bashrc
 $ source .bashrc
 ```
 
