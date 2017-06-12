@@ -1,4 +1,6 @@
 import os
+import json
+import logging
 
 import requests
 from bottle import Bottle, request, response, debug
@@ -6,16 +8,37 @@ from bottle import Bottle, request, response, debug
 from planbot import Planbot
 from connectdb import ConnectDB
 
-SLACK_VERIFY_TOKEN = os.environ.get('SLACK_VERIFY_TOKEN')
+CLIENT_ID = os.environ.get('CLIENT_ID')
+CLIENT_SECRET = os.environ.get('CLIENT_SECRET')
+VERIFY_TOKEN = os.environ.get('VERIFY_TOKEN')
 
 debug = True
 app = application = Bottle()
 
 
+@app.get('/slack')
+def code_exchange():
+    code = request.query.get('code')
+    if code:
+        data = {
+            'client_id': CLIENT_ID,
+            'client_secret': CLIENT_SECRET,
+            'code': code}
+
+        resp = requests.post('https://slack.com/api/oauth.access', data=data)
+        content = json.loads(resp.content.decode())
+        if content['ok']:
+            return 'Install successful'
+        else:
+            return 'Install unsuccessful'
+    else:
+        return 'Invalid request type'
+
+
 @app.post('/slack')
 def slack_post():
     data = request.forms
-    if not data['token'] == SLACK_VERIFY_TOKEN:
+    if not data['token'] == VERIFY_TOKEN:
         return None
     else:
         cmd = data['command'].strip('/')

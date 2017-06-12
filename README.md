@@ -20,7 +20,7 @@ user location data.
 ## Usage
 
 Planbot is currently available on [Facebook Messenger](https://m.me/planbotco) and
-[Slack](https://slack.com/oauth/authorize?scope=commands&client_id=162051889907.192270162849).
+[Slack](https://slack.com/oauth/authorize?&client_id=162051889907.192270162849&scope=commands).
 Planbot works within the guidelines of both platforms: a menu-based conversation
 structure in Messenger alongside the use of commands in Slack for quickly querying
 Planbot's database. This works well in minimising frustration common with chatbots,
