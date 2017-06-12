@@ -19,7 +19,7 @@ def slack_post():
         return None
     else:
         cmd = data['command'].strip('/')
-        text = data['text'].split(' &amp;&amp; ')
+        text = data['text']
         url = data['response_url']
 
     resp = {}
@@ -28,29 +28,15 @@ def slack_post():
     pb = Planbot()
     result = options = None
 
-    if len(text) == 1:
-        if text[0] == 'help':
-            resp['text'] = help_text(cmd)
-        elif cmd == 'reports':
-            resp['text'] = report_sectors(text[0])
-        else:
-            result, options = pb.run_task(action=switch[cmd], query=text[0])
-    elif len(text) == 2:
-        if cmd == 'reports':
-            result, options = pb.run_task(action=switch[cmd],
-                                          query=text[0],
-                                          sector=text[1])
-        else:
-            resp['text'] = '{} takes one argument.'.format(cmd)
+    if not text:
+        resp['text'] = 'No query! Type \'/{} help\' for more'.format(cmd)
+    if text == 'help':
+        resp['text'] = help_text(cmd)
     else:
-        resp['text'] = 'Invalid query! Type "/{} help" for more \
-            information'.format(cmd)
-
-    if not resp.get('text'):
-        resp['text'] = format_text(cmd, result=result, options=options)
+        result, options = pb.run_task(action=switch[cmd], query=text)
+        resp['text'] = format_text(result=result, options=options)
 
     send(url, resp)
-    # account for help text
     return None
 
 
@@ -60,33 +46,13 @@ def send(url, resp):
     return res.content
 
 
-def format_text(cmd, result=None, options=None):
+def format_text(result=None, options=None):
     if result:
-        if cmd == 'reports':
-            text = format_reports(result)
-        else:
-            text = ': '.join(result)
+        text = ': '.join(result)
     elif options:
         text = 'No match! Did you mean: {}'.format(', '.join(options))
     else:
         text = 'Sorry, no matches found for your query.'
-    return text
-
-
-def format_reports(result):
-    titles = result[0]
-    urls = result[1]
-    text = ('{} - {}'.format(titles[i], urls[i]) for i in range(len(titles)))
-    text = '\n'.join(text)
-    return text
-
-
-def report_sectors(location):
-    db = ConnectDB('reports')
-    sectors = db.distinct_sectors(location)
-    sectors = ', '.join(sec.capitalize() for sec in sectors)
-    text = 'Available sectors: {}'.format(sectors)
-    db.close()
     return text
 
 
@@ -102,8 +68,7 @@ switch = {
     'use': 'use_classes',
     'project': 'projects',
     'doc': 'documents',
-    'lp': 'local_plans',
-    'reports': 'reports'}
+    'lp': 'local_plans'}
 
 
 if __name__ == '__main__':

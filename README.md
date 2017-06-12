@@ -6,16 +6,11 @@ Planbot aims to provide users with a wide range of information. Currently, users
 * Ask for a definition to over 750 terms
 * Find out about different use classes and permitted development
 * Request policy and legislation, including local plans
-* Request market reports from industry sources
 
 Sources used:
 * Planning Portal
 * Gov UK
 * [*Lexicon of PRS, BtR & Property Terms*](http://www.richard-berridge.co.uk/prs-lexicon), Richard Berridge
-* Savills
-* Cushman & Wakefield
-* Gerald Eve
-* Knight Frank
 
 Planbot uses [Postcodes.io](https://github.com/ideal-postcodes/postcodes.io/) to parse
 user location data.
@@ -42,8 +37,7 @@ Available actions:
 | `use`     | Use classes information           | `/use/class`               |
 | `project` | Permitted development information | `/project/topic`           |
 | `doc`     | Request policy or legislation     | `/doc/name`                |
-| `lp`      | Request a local plan              | `/lp/area-or-postcode`     |
-| `reports` | Request market research           | `/reports/location/sector` |
+| `lp`      | Request a local plan              | `/lp/area (or postcode)`   |
 
 ---
 
@@ -94,7 +88,6 @@ $ source .bashrc
 Run `celery` worker with logging: `python3 planbot.py worker -l info`
 ```python
 >>> pb = Planbot()
->>> # pb.run_task(action='reports', query='london', sector='commercial')
 >>> pb.run_task(action='definitions', query='viability')
 (('Viability', 'In terms of retailing, a centre that is capable of commercial success.'), None)
 ```

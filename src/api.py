@@ -29,12 +29,7 @@ def process_params(path):
     if len(params) == 1:
         resp = return_all_data(params[0])
     elif len(params) == 2:
-        if params[0] == 'reports':
-            resp = handle_report_query(params[1])
-        else:
-            resp = answer_query(params)
-    elif len(params) == 3:
-        resp = handle_report_query(location=params[1], sector=params[2])
+        resp = answer_query(params)
     else:
         resp = {'success': False, 'error': 'Invalid number of parameters'}
 
@@ -43,9 +38,6 @@ def process_params(path):
 
 def return_all_data(action):
     resp = dict()
-
-    if action == 'reports':
-        return handle_report_query()
 
     try:
         db = ConnectDB(switch[action])
@@ -84,25 +76,9 @@ def answer_query(params):
         return resp
 
 
-def handle_report_query(location=None, sector=None):
-    resp = dict()
-    db = ConnectDB('reports')
-    res = db.query_reports(loc=location, sec=sector)
-    if res:
-        resp['success'] = True
-        resp['result'] = res
-    else:
-        resp['success'] = False
-        resp['error'] = 'No results found for given location/sector'
-
-    db.close()
-    return resp
-
-
 switch = {
     'define': 'definitions',
     'use': 'use_classes',
     'project': 'projects',
     'doc': 'documents',
-    'lp': 'local_plans',
-    'reports': 'reports'}
+    'lp': 'local_plans'}

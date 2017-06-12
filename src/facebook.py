@@ -97,7 +97,8 @@ def send(response):
     # check for urls
     if text.startswith('http'):
         urls = text.split()
-        titles = response['title']
+        title = response['title']
+        titles = [title] if not isinstance(title, list) else title
         cards = template(titles, urls)
 
     fb_message(fb_id, text, quickreplies, cards)
