@@ -19,7 +19,7 @@ class ConnectDB():
     def query_response(self, context):
         """Return response given message/context."""
 
-        assert selft.table == 'responses'
+        assert self.table == 'responses'
         self.cursor.execute('''SELECT response, quickreplies FROM responses
                                WHERE context=%s''', [context])
 

@@ -24,7 +24,7 @@ app = application = Bottle()
 logging.basicConfig(level=logging.INFO)
 
 nlp_entities = {
-    'greeting': 'GET_STARTED_PAYLOAD',
+    'greetings': 'GET_STARTED_PAYLOAD',
     'thanks': 'Thanks, bye!',
     'bye': 'Thanks, bye!'
 }
@@ -43,6 +43,7 @@ def messenger_webhook():
 @app.post('/facebook')
 def messenger_post():
     responses, fb_id = parse_response(request.json)
+    logging.info('responses: {}'.format(responses))
     if responses:
         text = responses[0]
     else:
@@ -50,6 +51,7 @@ def messenger_post():
 
     bot = Engine()
     for response in bot.response(user=fb_id, message=text):
+        logging.info(response)
         sender_action(fb_id)
         send(response)
 
@@ -66,7 +68,8 @@ def parse_response(data):
                 message = messages[0]
                 fb_id = message['sender']['id']
                 if message.get('message'):
-                    text = parse_text(message)
+                    text = parse_text(message['message'])
+                    logging.info('parsed text: {}'.format(text))
                 elif message.get('postback'):
                     text = message['postback']['payload']
 
@@ -79,7 +82,7 @@ def parse_response(data):
 
 def parse_text(message):
     if message.get('attachments'):
-        attachment = message['message']['attachments'][0]
+        attachment = message['attachments'][0]
         if attachment['title'] == 'Pinned Location':
             long = attachment['coordinates']['long']
             lat = attachment['coordinates']['lat']
@@ -88,20 +91,29 @@ def parse_text(message):
             text = 'NO_PAYLOAD'
     else:
         if message.get('nlp'):
-            text = find_entity(message['nlp']['entities'])
+            text = find_entity(message)
         else:
             text = message['message']['text']
 
     return text
 
 
-def find_entity(entities):
-    entity = {ent: entities[ent]['confidence'] for ent in entities
+def find_entity(message):
+    logging.info(message)
+    entities = message['nlp']['entities']
+    entity = {ent: entities[ent][0]['confidence'] for ent in entities
               if ent in nlp_entities}
+    logging.info('found entities: {}'.format(entity))
     if entity:
-        text = sorted(entity, key=entity.get, reverse=True)[0]
+        match = sorted(entity, key=entity.get, reverse=True)[0]
+        text = nlp_entities[match]
     else:
-        text = 'NO_PAYLOAD'
+        try:
+            text = message['text']
+        except KeyError:
+            text = 'NO_PAYLOAD'
+
+    logging.info('find_entity: {}'.format(text))
     return text
 
 
