@@ -42,7 +42,7 @@ def messenger_webhook():
 
 @app.post('/facebook')
 def messenger_post():
-    response = parse_response(request.json)
+    responses = parse_response(request.json)
     if responses:
         text = responses[0]
     else:
