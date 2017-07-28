@@ -42,7 +42,7 @@ def messenger_webhook():
 
 @app.post('/facebook')
 def messenger_post():
-    responses = parse_response(request.json)
+    responses, fb_id = parse_response(request.json)
     if responses:
         text = responses[0]
     else:
@@ -58,6 +58,7 @@ def messenger_post():
 
 def parse_response(data):
     responses = []
+    fb_id = None
     if data['object'] == 'page':
         for entry in data['entry']:
             messages = entry['messaging']
@@ -73,12 +74,12 @@ def parse_response(data):
                 responses.append(text)
     else:
         return 'Received Different Event'
-    return responses
+    return responses, fb_id
 
 
 def parse_text(message):
     if message.get('attachments'):
-        attachment = messsage['message']['attachments'][0]
+        attachment = message['message']['attachments'][0]
         if attachment['title'] == 'Pinned Location':
             long = attachment['coordinates']['long']
             lat = attachment['coordinates']['lat']
@@ -94,7 +95,7 @@ def parse_text(message):
     return text
 
 
-def find_entitiy(entities):
+def find_entity(entities):
     entity = {ent: entities[ent]['confidence'] for ent in entities
               if ent in nlp_entities}
     if entity:
