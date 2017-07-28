@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 """
 Planbot's Facebook application. Handles requests and responses through the
-Wit and Facebook Graph APIs.
+Facebook Graph API. Converts location data to postcode with Postcodes.io API.
 """
 
 import os
@@ -23,6 +23,12 @@ app = application = Bottle()
 # setup logging
 logging.basicConfig(level=logging.INFO)
 
+nlp_entities = {
+    'greeting': 'GET_STARTED_PAYLOAD',
+    'thanks': 'Thanks, bye!',
+    'bye': 'Thanks, bye!'
+}
+
 
 @app.get('/facebook')
 def messenger_webhook():
@@ -36,33 +42,7 @@ def messenger_webhook():
 
 @app.post('/facebook')
 def messenger_post():
-    data = request.json
-    responses = []
-    if data['object'] == 'page':
-        for entry in data['entry']:
-            messages = entry['messaging']
-            if messages[0]:
-                message = messages[0]
-                fb_id = message['sender']['id']
-                if message.get('message'):
-                    if message.get('attachments'):
-                        attachment = messsage['message']['attachments'][0]
-                        if attachment['title'] == 'Pinned Location':
-                            long = attachment['coordinates']['long']
-                            lat = attachment['coordinates']['lat']
-                            text = geo_convert(longitude=long, latitude=lat)
-                        else:
-                            text = 'NO_PAYLOAD'
-                    else:
-                        text = message['message']['text']
-                elif message.get('postback'):
-                    text = message['postback']['payload']
-
-                logging.info('Message received: {}'.format(text))
-                responses.append(text)
-    else:
-        return 'Received Different Event'
-
+    response = parse_response(request.json)
     if responses:
         text = responses[0]
     else:
@@ -74,6 +54,54 @@ def messenger_post():
         send(response)
 
     return None
+
+
+def parse_response(data):
+    responses = []
+    if data['object'] == 'page':
+        for entry in data['entry']:
+            messages = entry['messaging']
+            if messages[0]:
+                message = messages[0]
+                fb_id = message['sender']['id']
+                if message.get('message'):
+                    text = parse_text(message)
+                elif message.get('postback'):
+                    text = message['postback']['payload']
+
+                logging.info('Message received: {}'.format(text))
+                responses.append(text)
+    else:
+        return 'Received Different Event'
+    return responses
+
+
+def parse_text(message):
+    if message.get('attachments'):
+        attachment = messsage['message']['attachments'][0]
+        if attachment['title'] == 'Pinned Location':
+            long = attachment['coordinates']['long']
+            lat = attachment['coordinates']['lat']
+            text = geo_convert(longitude=long, latitude=lat)
+        else:
+            text = 'NO_PAYLOAD'
+    else:
+        if message.get('nlp'):
+            text = find_entity(message['nlp']['entities'])
+        else:
+            text = message['message']['text']
+
+    return text
+
+
+def find_entitiy(entities):
+    entity = {ent: entities[ent]['confidence'] for ent in entities
+              if ent in nlp_entities}
+    if entity:
+        text = sorted(entity, key=entity.get, reverse=True)[0]
+    else:
+        text = 'NO_PAYLOAD'
+    return text
 
 
 def sender_action(sender_id):
